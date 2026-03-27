@@ -17,26 +17,26 @@ tPIParm PLL;		//À¯œ‡ª∑
 ****************************************************************/
 void InitPI(void)
 {
-	CurID.qKp = 12000;				//Q15
-	CurID.qKi = 400;
+	CurID.qKp = 9000;				//Q15
+	CurID.qKi = 200;
 	CurID.qOutMax = 4000;
 	CurID.qOutMin = -4000;
 	CurID.qdSum = 0;
 	CurID.qInMeas = 0;
 	CurID.qOut = 0;
 	
-	CurIQ.qKp = 12000;
-	CurIQ.qKi = 400;
+	CurIQ.qKp = 9000;
+	CurIQ.qKi = 200;
 	CurIQ.qOutMax = 30000;
 	CurIQ.qOutMin = -30000;
 	CurIQ.qdSum = 0;
 	CurIQ.qInMeas = 0;
 	CurIQ.qOut = 0;
 	
-	Speed.qKp = 15000;
-	Speed.qKi = 400;
-	Speed.qOutMax = IshuntGain*25;
-	Speed.qOutMin = -IshuntGain*25;
+	Speed.qKp = 5000;
+	Speed.qKi = 60;
+	Speed.qOutMax = IshuntGain * 5;
+	Speed.qOutMin = -IshuntGain * 5;
 	Speed.qdSum = 0;
 	Speed.qInMeas = 0;
 	Speed.qOut = 0;

@@ -38,6 +38,6 @@
 ".\objects\drv_tim.o"
 ".\objects\systick.o"
 --strict --scatter ".\Objects\SPIN0230_DEMO.sct"
---summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
 --list ".\Listings\SPIN0230_DEMO.map" -o .\Objects\SPIN0230_DEMO.axf

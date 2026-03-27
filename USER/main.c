@@ -103,6 +103,23 @@ int main(void)
 			Speed.qInMeas = SpeedFdk.Out;
 			CalcPI(&Speed);
 			
+			//========================
+			// -------- Linear Field Weakening --------
+			if (SpeedFdk.Out <= 3200)
+			{
+					IdRef = 0;
+			}
+			else if (SpeedFdk.Out >= 5000)
+			{
+					IdRef = -700;
+			}
+			else
+			{
+					// IdRef = -(Speed-3200) * 700 / (5000-3200)
+					IdRef = -((int32_t)(SpeedFdk.Out - 3200) * 700 / 1800);
+			}
+			//========================
+			
 			//电压保护 缺相保护
 			Diagnose_VBUS_ADC(ADC_Structure.VBusInput);
 		}

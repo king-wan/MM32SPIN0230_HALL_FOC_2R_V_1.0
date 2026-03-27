@@ -4,9 +4,9 @@
 #include "mm32_device.h"
 #include "hal_conf.h"
 
-#define		POLEPAIRS		5
-#define 	MAX_SPEED		1200
-#define 	MOTOR_DIR		1	      	//1:CW, -1:CCW
+#define		POLEPAIRS		1
+#define 	MAX_SPEED		4000
+#define 	MOTOR_DIR		-1	      	//1:CW, -1:CCW
 
 //--------------------- Current measurement -------------------------------------------------------------------
 #define 	ISUM_R_VALUE    		50 	//unit:milli ohm, 50 means 0.05 ohm

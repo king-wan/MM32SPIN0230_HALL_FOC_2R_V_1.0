@@ -10,8 +10,8 @@
 /*------------------- Private variables ---------------*/
 HALLType HALL1;
 SectorType SectorStudy;
-int16_t CWShift = 9000;
-int16_t CCWShift = -1820;
+int16_t CWShift = 0;
+int16_t CCWShift = -1200;
 uint8_t ReadHallValue;
 
 /*------------------ Private functions ----------------*/
@@ -39,13 +39,13 @@ void HALLModuleInit(HALLType *u)
 	u->Time100msCNT = 0;
 	u->HallTimeSum = 60000;
 	
-	u->CWAngleTab[5] = -10922;
-	u->CWAngleTab[4] = 0;
-	u->CWAngleTab[6] = 10922;
-	u->CWAngleTab[2] = 21844;
-	u->CWAngleTab[3] = 32767;
-	u->CWAngleTab[1] = -21844;
-	
+	u->CWAngleTab[1] = -21844;   // step1
+	u->CWAngleTab[3] = -10922;   // step2
+	u->CWAngleTab[2] = 0;        // step3
+	u->CWAngleTab[6] = 10922;    // step4
+	u->CWAngleTab[4] = 21844;    // step5
+	u->CWAngleTab[5] = 32767;    // step6
+		
 	u->CCWAngleTab[5] = -21844;
 	u->CCWAngleTab[4] = -10922;
 	u->CCWAngleTab[6] = 0;

@@ -375,10 +375,10 @@ void LoopCmp_Init(void)
 {
 	RPValue.Act = 0;
 	RPValue.Dest = 0;
-	RPValue.Max = 1200;
+	RPValue.Max = 1000;
 	RPValue.Min = 0;
-	RPValue.Inc = 5;
-	RPValue.Dec = 5;
+	RPValue.Inc = 50;
+	RPValue.Dec = 50;
 }
 
 /*************************************

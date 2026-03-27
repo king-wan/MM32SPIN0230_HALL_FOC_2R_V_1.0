@@ -46,10 +46,10 @@ void Init_Parameter(void)
 	IshuntGain = ISHUNT_GAIN/10;								//unit 0.1A					
 	IsumGain = 100*4096/ISUM_GAIN;								//unit 0.01A
 	VbusGain = (122*(VBUS_PULL_UP_R + VBUS_PULL_DOWN_R)*1024)/(1000 * VBUS_PULL_DOWN_R); //unit 0.01V
-	SpeedGain = 60000000/POLEPAIRS;								//RPM
+	SpeedGain = 6000000/POLEPAIRS;								//RPM
 	
 	InitPI();
-	InitNormalization(300,4000,1200,&RP);
+	InitNormalization(300,4000,1000,&RP);
 	LoopCmp_Init();
 	HALLModuleInit(&HALL1);
 	PWM_GEN_init(&pwm_gen);

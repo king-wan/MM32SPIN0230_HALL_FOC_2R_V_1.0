@@ -16,7 +16,7 @@ uint8_t MotorState = IDLESTATE;
 uint16_t Time5msCnt = 0;
 uint16_t Time200msCnt = 0;
 int16_t ElecAngle = 0;
-int16_t IdRef = 0;
+int16_t IdRef = -1000;
 int16_t IqRef = 0;
 int16_t AngleTest = 0;
 Trig_Components Vector_Components;
@@ -81,7 +81,8 @@ void Motor_Drive(void)
 		ADC_Structure.IU = u16IuOffset - (GET_ADC_VALUE(IR_U_CHANNEL)<<3);	//adc is 15 bit
 		ADC_Structure.IV = u16IvOffset - (GET_ADC_VALUE(IR_V_CHANNEL)<<3);	//adc is 15 bit
 		ADC_Structure.VBusInput = GET_ADC_VALUE(VBUS_CHANNEL);		//adc is 12 bit
-		ADC_Structure.SPEED = GET_ADC_VALUE(VR_CHANNEL);  			//adc is 12 bit
+		//ADC_Structure.SPEED = GET_ADC_VALUE(VR_CHANNEL);  			//adc is 12 bit
+		ADC_Structure.SPEED = 4095;  			//adc is 12 bit
 	}	
 	
 	//Âß¼­×ª»»

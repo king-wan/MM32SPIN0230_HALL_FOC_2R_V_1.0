@@ -365,11 +365,11 @@ ARM Macro Assembler    Page 6
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M0 --apcs=interw
 ork --depend=.\objects\startup_mm32spin0230_keil.d -o.\objects\startup_mm32spin
-0230_keil.o -I.\RTE\_MM32SPIN0230 -IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.1\CMSIS\I
-nclude -IC:\Keil_v5\ARM\PACK\MindMotion\MM32SPIN0230_DFP\0.0.1\Device\MM32G5332
-D --predefine="__UVISION_VERSION SETA 523" --predefine="_RTE_ SETA 1" --predefi
-ne="MM32SPIN0230B3TV SETA 1" --list=.\listings\startup_mm32spin0230_keil.lst ..
-\MM32SPIN0230\Source\KEIL_StartAsm\startup_mm32spin0230_keil.s
+0230_keil.o -I.\RTE\_MM32SPIN0230 -IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core
+\Include -IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D
+ --predefine="__UVISION_VERSION SETA 536" --predefine="_RTE_ SETA 1" --predefin
+e="_RTE_ SETA 1" --list=.\listings\startup_mm32spin0230_keil.lst ..\MM32SPIN023
+0\Source\KEIL_StartAsm\startup_mm32spin0230_keil.s
 
 
 
@@ -956,4 +956,4 @@ Symbol: __use_two_region_memory
       None
 Comment: __use_two_region_memory unused
 3 symbols
-383 symbols in table
+382 symbols in table
