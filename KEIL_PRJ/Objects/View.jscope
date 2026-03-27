@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<JScopeProject>
+    <FileVersion major="1" minor="1" />
+    <Project>
+        <Configuration>
+            <JLink>
+                <Options Connection="1" IsRTTSession="0" IsRTTWithTimeStamp="1" SamplingPeriod="1000" SerialNo="0" JTAG_IRPre="-1" JTAG_DRPre="-1" IP="" TargetDevice="Cortex-M0" TargetInterface="SWD" InterfaceSpeed="4000" />
+            </JLink>
+            <ElfFile Name="D:\客户项目\立得\MM32SPIN0230_HALL_FOC_2R_V_1.0\KEIL_PRJ\Objects\SPIN0230_DEMO.axf" />
+            <DataFile Name="" />
+            <RawFile Name="" />
+            <Scope>
+                <Options TimeResolutionUs="10000" />
+            </Scope>
+        </Configuration>
+        <Windows>
+            <Graph Show="1" />
+            <Watch Show="1" />
+        </Windows>
+        <SelectedSymbols>
+            <Symbol>
+                <Options Name="RunHallValue" Address="0x200001CC" Type="uchar" TypeID="6" Size="1" GraphColorRed="160" GraphColorGreen="32" GraphColorBlue="240" YMinSampled="1" YMaxSampled="6" YAvgSampled="3" Offset="4" ShowInGraph="1" ACCoupling="0" YOffset="200" IsAutoConfig="1" YResolution="5" MaxValue="10" File="..\MM_MCLIB\HallHandle.c" Scope="0" DrawStyle="0" />
+            </Symbol>
+            <Symbol>
+                <Options Name="Angle" Address="0x200001D0" Type="short" TypeID="11" Size="2" GraphColorRed="255" GraphColorGreen="0" GraphColorBlue="0" YMinSampled="-32640" YMaxSampled="32747" YAvgSampled="-15296" Offset="5" ShowInGraph="1" ACCoupling="0" YOffset="200" IsAutoConfig="1" YResolution="20000" MaxValue="40000" File="..\MM_MCLIB\HallHandle.c" Scope="0" DrawStyle="0" />
+            </Symbol>
+            <Symbol>
+                <Options Name="IU" Address="0x20000072" Type="short" TypeID="11" Size="2" GraphColorRed="102" GraphColorGreen="102" GraphColorBlue="178" YMinSampled="-976" YMaxSampled="784" YAvgSampled="-568" Offset="7" ShowInGraph="1" ACCoupling="0" YOffset="200" IsAutoConfig="0" YResolution="1000" MaxValue="1000" File="..\USER\user_function.c" Scope="0" DrawStyle="0" />
+            </Symbol>
+            <Symbol>
+                <Options Name="IV" Address="0x20000074" Type="short" TypeID="11" Size="2" GraphColorRed="160" GraphColorGreen="32" GraphColorBlue="240" YMinSampled="-744" YMaxSampled="1176" YAvgSampled="284" Offset="9" ShowInGraph="1" ACCoupling="0" YOffset="200" IsAutoConfig="1" YResolution="1000" MaxValue="2000" File="..\USER\user_function.c" Scope="0" DrawStyle="0" />
+            </Symbol>
+        </SelectedSymbols>
+    </Project>
+</JScopeProject>
