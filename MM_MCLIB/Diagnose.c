@@ -52,7 +52,7 @@ void Diagnose_IBUS_ADC(u16 I_ADCData)
 	
 	if(MotorOCP_State >= 32)
 	{
-		//FAULT.bit.OverIBUSFlag = 1;
+		FAULT.bit.OverIBUSFlag = 1;
 	}
 	else
 	{}

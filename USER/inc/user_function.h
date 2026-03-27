@@ -22,8 +22,8 @@
 
 #define 	VBUS_HIGH_VALUE1	3600  		//过压阀值		36V
 #define 	VBUS_HIGH_VALUE2	3500  		//过压恢复		35V
-#define 	VBUS_LOW_VALUE1		2000   	 	//欠压阀值		20V
-#define 	VBUS_LOW_VALUE2		2100   	  	//欠压恢复		21V
+#define 	VBUS_LOW_VALUE1		1600   	 	//欠压阀值		20V
+#define 	VBUS_LOW_VALUE2		1700   	  	//欠压恢复		21V
 #define 	IBUS_OVER_VALUE		200   		//软件过流值		2A
 #define 	IBUS_LIMIT_VALUE	120			//软件限流		1A
 #define 	LACK_PHASE_DETECT_CYCLE		1000
