@@ -60,6 +60,7 @@ int main(void)
 	 /* Infinite loop */
     while(1)
     {
+        Board_USART_DMA_Task();
 		/*IWDG_ReloadCounter*/
         IWDG_RELOAD_COUNT();
 		
@@ -104,20 +105,9 @@ int main(void)
 			CalcPI(&Speed);
 			
 			//========================
-			// -------- Linear Field Weakening --------
-			if (SpeedFdk.Out <= 3200)
-			{
-					IdRef = 0;
-			}
-			else if (SpeedFdk.Out >= 5000)
-			{
-					IdRef = -700;
-			}
-			else
-			{
-					// IdRef = -(Speed-3200) * 700 / (5000-3200)
-					IdRef = -((int32_t)(SpeedFdk.Out - 3200) * 700 / 1800);
-			}
+			if (SpeedFdk.Out <= 500) IdRef = 0;
+			else if (SpeedFdk.Out >= 800) IdRef = -350;
+			else IdRef = -((int32_t)(SpeedFdk.Out - 500) * 350 / 1400);
 			//========================
 			
 			//电压保护 缺相保护
@@ -133,3 +123,5 @@ int main(void)
 /**
   * @}
 */
+
+

@@ -24,6 +24,11 @@
 #include "parameter.h"
 #include "user_function.h"
 
+volatile uint32_t USART_TX_DMA_InterruptFlag = 0;
+volatile uint32_t USART_RX_DMA_InterruptFlag = 0;
+
+static uint8_t s_usart_dma_buffer[USART_DMA_TRANSFER_LEN];
+
 /**
  * @addtogroup MM32_Hardware_Driver_Layer
  * @{
@@ -298,6 +303,121 @@ void Board_Opamp_Init(void)
     OPAMP_Cmd(OPAMP1,ENABLE);
     OPAMP_Cmd(OPAMP2,ENABLE);
 }
+
+void Board_USART_DMA_Init(uint32_t baudrate)
+{
+    GPIO_InitTypeDef  GPIO_InitStructure;
+    USART_InitTypeDef USART_InitStruct;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART1, ENABLE);
+    RCC_AHBPeriphClockCmd(USART_DMA_GPIO_CLK, ENABLE);
+    RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA, ENABLE);
+
+    GPIO_PinAFConfig(USART_DMA_TX_PORT, USART_DMA_TX_PIN_SOURCE, USART_DMA_AF);
+    GPIO_PinAFConfig(USART_DMA_RX_PORT, USART_DMA_RX_PIN_SOURCE, USART_DMA_AF);
+
+    GPIO_StructInit(&GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = USART_DMA_TX_PIN | USART_DMA_RX_PIN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_High;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+    GPIO_Init(USART_DMA_TX_PORT, &GPIO_InitStructure);
+
+    USART_StructInit(&USART_InitStruct);
+    USART_InitStruct.USART_BaudRate = baudrate;
+    USART_InitStruct.USART_WordLength = USART_WordLength_8b;
+    USART_InitStruct.USART_StopBits = USART_StopBits_1;
+    USART_InitStruct.USART_Parity = USART_Parity_No;
+    USART_InitStruct.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_InitStruct.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_Init(USART_DMA_INSTANCE, &USART_InitStruct);
+
+    USART_DMACmd(USART_DMA_INSTANCE, ENABLE);
+    USART_Cmd(USART_DMA_INSTANCE, ENABLE);
+}
+
+void Board_USART_DMA_StartRx(uint8_t *buffer, uint16_t length)
+{
+    DMA_InitTypeDef  DMA_InitStruct;
+    NVIC_InitTypeDef NVIC_InitStruct;
+
+    DMA_DeInit(USART_DMA_RX_CHANNEL);
+
+    DMA_StructInit(&DMA_InitStruct);
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&(USART_DMA_INSTANCE->DR);
+    DMA_InitStruct.DMA_MemoryBaseAddr = (uint32_t)buffer;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralSRC;
+    DMA_InitStruct.DMA_BufferSize = length;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStruct.DMA_M2M = DMA_M2M_Disable;
+    DMA_InitStruct.DMA_Auto_reload = DMA_Auto_Reload_Disable;
+    DMA_Init(USART_DMA_RX_CHANNEL, &DMA_InitStruct);
+
+    DMA_ClearFlag(USART_DMA_RX_TC_FLAG);
+    DMA_ITConfig(USART_DMA_RX_CHANNEL, DMA_IT_TC, ENABLE);
+
+    NVIC_InitStruct.NVIC_IRQChannel = USART_DMA_RX_IRQ;
+    NVIC_InitStruct.NVIC_IRQChannelPriority = 0x01;
+    NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStruct);
+
+    USART_RX_DMA_InterruptFlag = 0;
+    DMA_Cmd(USART_DMA_RX_CHANNEL, ENABLE);
+}
+
+void Board_USART_DMA_StartTx(uint8_t *buffer, uint16_t length)
+{
+    DMA_InitTypeDef  DMA_InitStruct;
+    NVIC_InitTypeDef NVIC_InitStruct;
+
+    DMA_DeInit(USART_DMA_TX_CHANNEL);
+
+    DMA_StructInit(&DMA_InitStruct);
+    DMA_InitStruct.DMA_PeripheralBaseAddr = (uint32_t)&(USART_DMA_INSTANCE->DR);
+    DMA_InitStruct.DMA_MemoryBaseAddr = (uint32_t)buffer;
+    DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralDST;
+    DMA_InitStruct.DMA_BufferSize = length;
+    DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+    DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStruct.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStruct.DMA_M2M = DMA_M2M_Disable;
+    DMA_InitStruct.DMA_Auto_reload = DMA_Auto_Reload_Disable;
+    DMA_Init(USART_DMA_TX_CHANNEL, &DMA_InitStruct);
+
+    DMA_ClearFlag(USART_DMA_TX_TC_FLAG);
+    DMA_ITConfig(USART_DMA_TX_CHANNEL, DMA_IT_TC, ENABLE);
+
+    NVIC_InitStruct.NVIC_IRQChannel = USART_DMA_TX_IRQ;
+    NVIC_InitStruct.NVIC_IRQChannelPriority = 0x01;
+    NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStruct);
+
+    USART_TX_DMA_InterruptFlag = 0;
+    DMA_Cmd(USART_DMA_TX_CHANNEL, ENABLE);
+}
+
+void Board_USART_DMA_Task(void)
+{
+    if (USART_RX_DMA_InterruptFlag != 0)
+    {
+        USART_RX_DMA_InterruptFlag = 0;
+        Board_USART_DMA_StartTx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
+        return;
+    }
+
+    if (USART_TX_DMA_InterruptFlag != 0)
+    {
+        USART_TX_DMA_InterruptFlag = 0;
+        Board_USART_DMA_StartRx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
+    }
+}
 /**
   * @brief Initialize all configured peripherals
   * @param None
@@ -314,6 +434,9 @@ void Peripheral_Init(void)
 	
 	/*Initialize divider*/
     Drv_Hwdiv_Init();
+
+    Board_USART_DMA_Init(115200);
+    Board_USART_DMA_StartRx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
 	
 	/** Enable the TIM1 */
     TIM_Cmd(TIM1, ENABLE);

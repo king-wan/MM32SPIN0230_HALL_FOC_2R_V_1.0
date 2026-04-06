@@ -155,6 +155,27 @@
 #define BLDC1_WL_PIN_AF              GPIO_AF_5
 //#define BLDC1_BKP_PIN_AF             GPIO_AF_2
 
+/** USART DMA interface */
+#define USART_DMA_GPIO_CLK           (RCC_AHBENR_GPIOA_Msk)
+#define USART_DMA_INSTANCE           USART1
+#define USART_DMA_AF                 GPIO_AF_5
+#define USART_DMA_TX_PORT            GPIOA
+#define USART_DMA_TX_PIN             GPIO_Pin_11
+#define USART_DMA_TX_PIN_SOURCE      GPIO_PinSource11
+#define USART_DMA_RX_PORT            GPIOA
+#define USART_DMA_RX_PIN             GPIO_Pin_12
+#define USART_DMA_RX_PIN_SOURCE      GPIO_PinSource12
+
+#define USART_DMA_RX_CHANNEL         DMA1_Channel2
+#define USART_DMA_TX_CHANNEL         DMA1_Channel1
+#define USART_DMA_RX_IRQ             DMA1_Channel2_IRQn
+#define USART_DMA_TX_IRQ             DMA1_Channel1_IRQn
+#define USART_DMA_RX_TC_FLAG         DMA1_FLAG_TC2
+#define USART_DMA_TX_TC_FLAG         DMA1_FLAG_TC1
+#define USART_DMA_RX_IT_TC           DMA1_IT_TC2
+#define USART_DMA_TX_IT_TC           DMA1_IT_TC1
+
+#define USART_DMA_TRANSFER_LEN       (10U)
 
 
 
@@ -171,6 +192,13 @@
 
 extern void Bsp_Gpio_Init(void);
 extern void Peripheral_Init(void);
+extern void Board_USART_DMA_Init(uint32_t baudrate);
+extern void Board_USART_DMA_StartRx(uint8_t *buffer, uint16_t length);
+extern void Board_USART_DMA_StartTx(uint8_t *buffer, uint16_t length);
+extern void Board_USART_DMA_Task(void);
+
+extern volatile uint32_t USART_TX_DMA_InterruptFlag;
+extern volatile uint32_t USART_RX_DMA_InterruptFlag;
 /**
   * @}
 */

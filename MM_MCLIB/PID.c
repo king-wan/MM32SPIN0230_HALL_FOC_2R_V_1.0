@@ -33,8 +33,8 @@ void InitPI(void)
 	CurIQ.qInMeas = 0;
 	CurIQ.qOut = 0;
 	
-	Speed.qKp = 5000;
-	Speed.qKi = 60;
+	Speed.qKp = 6000;
+	Speed.qKi = 80;
 	Speed.qOutMax = IshuntGain * 5;
 	Speed.qOutMin = -IshuntGain * 5;
 	Speed.qdSum = 0;

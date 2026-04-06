@@ -93,7 +93,25 @@ void EXTI4_15_IRQHandler(void) {}
 
 void HWDIV_IRQHandler(void) {}
 
-void DMA1_Channel1_IRQHandler(void) {}
+void DMA1_Channel1_IRQHandler(void)
+{
+    if (SET == DMA_GetITStatus(USART_DMA_TX_IT_TC))
+    {
+        DMA_Cmd(USART_DMA_TX_CHANNEL, DISABLE);
+        USART_TX_DMA_InterruptFlag = 1;
+        DMA_ClearITPendingBit(USART_DMA_TX_IT_TC);
+    }
+}
+
+void DMA1_Channel2_IRQHandler(void)
+{
+    if (SET == DMA_GetITStatus(USART_DMA_RX_IT_TC))
+    {
+        DMA_Cmd(USART_DMA_RX_CHANNEL, DISABLE);
+        USART_RX_DMA_InterruptFlag = 1;
+        DMA_ClearITPendingBit(USART_DMA_RX_IT_TC);
+    }
+}
 
 void DMA1_Channel2_3_IRQHandler(void) {}
 
