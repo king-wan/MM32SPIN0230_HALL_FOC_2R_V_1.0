@@ -1,6 +1,6 @@
 Dependencies for Project 'MM32SPIN0230_Demo', Target 'MM32SPIN0230': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
-F (..\USER\main.c)(0x69D4F8BB)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\main.o --omf_browse .\objects\main.crf --depend .\objects\main.d)
+F (..\USER\main.c)(0x69D50167)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\main.o --omf_browse .\objects\main.crf --depend .\objects\main.d)
 I (..\USER\inc\main.h)(0x643774C2)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
@@ -1094,7 +1094,7 @@ I (..\DRIVE\inc\drv_iwdg.h)(0x62BD32A6)
 I (..\DRIVE\inc\drv_div.h)(0x641AC2BE)
 I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
-F (..\MM_MCLIB\MC_Drive.c)(0x69D4F980)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mc_drive.o --omf_browse .\objects\mc_drive.crf --depend .\objects\mc_drive.d)
+F (..\MM_MCLIB\MC_Drive.c)(0x69D500CE)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mc_drive.o --omf_browse .\objects\mc_drive.crf --depend .\objects\mc_drive.d)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\MM32SPIN0230\HAL_Lib\inc\HAL_conf.h)(0x6433A4FC)

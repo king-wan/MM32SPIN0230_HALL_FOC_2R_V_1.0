@@ -27,6 +27,12 @@ int16_t M1FaultID, M1FaultID_Record;
 #define STOP_REPORT_SPEED_TH      25
 #define STOP_REPORT_STABLE_CNT    20
 #define STOP_REPORT_DELAY_CNT     120
+#define STOP_REPORT_TIMEOUT_CNT   400
+#define CMD_EVENT_DEBOUNCE_CNT     6
+#define ZERO_REF_CLAMP_TH         40
+#define START_RUN_SNAPSHOT_CNT     40
+#define RUN_MIN_REF              140
+#define RUN_MIN_OUT               45
 
 int main(void)
 {
@@ -69,6 +75,11 @@ int main(void)
             static uint8_t s_stop_stable_cnt = 0;
             static uint16_t s_stop_delay_cnt = 0;
             static uint8_t s_stop_last_hall = 0;
+            static uint8_t s_cmd_raw_prev = 0;
+            static uint8_t s_cmd_filt = 0;
+            static uint8_t s_cmd_stable_cnt = 0;
+            static uint8_t s_wait_start_snapshot = 0;
+            static uint16_t s_start_snapshot_cnt = 0;
 
             TIMFlag.Delay5ms = 0;
 
@@ -102,6 +113,21 @@ int main(void)
 
             RPValue.Dest = RP.Out;
             LoopCmp_Cal(&RPValue);
+            if (s_speed_enable == 0U)
+            {
+                /* Commanded stop: force speed reference to zero immediately. */
+                RPValue.Dest = 0;
+                RPValue.Act = 0;
+            }
+            else if (RPValue.Act < RUN_MIN_REF)
+            {
+                /* Avoid weak-command stall right after start. */
+                RPValue.Act = RUN_MIN_REF;
+            }
+            else if ((RPValue.Dest == 0) && (RPValue.Act <= ZERO_REF_CLAMP_TH))
+            {
+                RPValue.Act = 0;
+            }
 
             SpeedFdk.NewData = HALL1.SpeedTemp;
             MovingAvgCal(&SpeedFdk);
@@ -109,6 +135,16 @@ int main(void)
             Speed.qInRef = RPValue.Act;
             Speed.qInMeas = SpeedFdk.Out;
             CalcPI(&Speed);
+            if ((s_speed_enable != 0U) && (Speed.qOut < RUN_MIN_OUT))
+            {
+                Speed.qOut = RUN_MIN_OUT;
+            }
+            if (Speed.qOut < 0)
+            {
+                /* Forward-only mode: block reverse torque near stop. */
+                Speed.qOut = 0;
+                Speed.qdSum = 0;
+            }
 
             if (SpeedFdk.Out <= 500)
             {
@@ -126,7 +162,24 @@ int main(void)
             Diagnose_VBUS_ADC(ADC_Structure.VBusInput);
 
 #if HALL_START_STOP_PRINT
-            uint8_t cmd_active = (RPValue.Act > 0) ? 1U : 0U;
+            uint8_t cmd_raw = s_speed_enable;
+            uint8_t cmd_active;
+            if (cmd_raw == s_cmd_raw_prev)
+            {
+                if (s_cmd_stable_cnt < 250U) { s_cmd_stable_cnt++; }
+            }
+            else
+            {
+                s_cmd_raw_prev = cmd_raw;
+                s_cmd_stable_cnt = 0;
+            }
+
+            if (s_cmd_stable_cnt >= CMD_EVENT_DEBOUNCE_CNT)
+            {
+                s_cmd_filt = cmd_raw;
+            }
+            cmd_active = s_cmd_filt;
+
             if ((cmd_active != 0U) && (s_prev_outen == 0U))
             {
                 char evt_buf[96];
@@ -138,6 +191,9 @@ int main(void)
                 Board_USART_SendString(evt_buf);
                 s_wait_stop_report = 0;
                 s_stop_stable_cnt = 0;
+                s_stop_delay_cnt = 0;
+                s_wait_start_snapshot = 1;
+                s_start_snapshot_cnt = 0;
             }
             else if ((cmd_active == 0U) && (s_prev_outen != 0U))
             {
@@ -145,6 +201,27 @@ int main(void)
                 s_stop_stable_cnt = 0;
                 s_stop_delay_cnt = 0;
                 s_stop_last_hall = HALL_ReadHallPorts();
+                s_wait_start_snapshot = 0;
+                s_start_snapshot_cnt = 0;
+            }
+
+            if ((s_wait_start_snapshot != 0U) && (cmd_active != 0U))
+            {
+                s_start_snapshot_cnt++;
+                if (s_start_snapshot_cnt >= START_RUN_SNAPSHOT_CNT)
+                {
+                    char evt_buf[96];
+                    snprintf(evt_buf, sizeof(evt_buf),
+                             "RUN200 hall=%u spd=%d fdk=%d ref=%d out=%d\r\n",
+                             (unsigned int)HALL_ReadHallPorts(),
+                             (int)HALL1.SpeedTemp,
+                             (int)SpeedFdk.Out,
+                             (int)RPValue.Act,
+                             (int)Speed.qOut);
+                    Board_USART_SendString(evt_buf);
+                    s_wait_start_snapshot = 0;
+                    s_start_snapshot_cnt = 0;
+                }
             }
 
             if (s_wait_stop_report != 0)
@@ -163,11 +240,25 @@ int main(void)
                 }
 
                 if ((s_stop_delay_cnt >= STOP_REPORT_DELAY_CNT) &&
-                    (s_stop_stable_cnt >= STOP_REPORT_STABLE_CNT))
+                    (s_stop_stable_cnt >= STOP_REPORT_STABLE_CNT) &&
+                    (SpeedFdk.Out <= STOP_REPORT_SPEED_TH))
                 {
                     char evt_buf[96];
                     snprintf(evt_buf, sizeof(evt_buf),
                              "STOP  hall=%u ang=%d spd=%d\r\n",
+                             (unsigned int)hall_now,
+                             (int)HALL1.Angle,
+                             (int)HALL1.SpeedTemp);
+                    Board_USART_SendString(evt_buf);
+                    s_wait_stop_report = 0;
+                    s_stop_stable_cnt = 0;
+                    s_stop_delay_cnt = 0;
+                }
+                else if (s_stop_delay_cnt >= STOP_REPORT_TIMEOUT_CNT)
+                {
+                    char evt_buf[96];
+                    snprintf(evt_buf, sizeof(evt_buf),
+                             "STOP_TMO hall=%u ang=%d spd=%d\r\n",
                              (unsigned int)hall_now,
                              (int)HALL1.Angle,
                              (int)HALL1.SpeedTemp);
@@ -199,10 +290,11 @@ int main(void)
                 __enable_irq();
 
                 snprintf(dbg_buf, sizeof(dbg_buf),
-                         "edge %u->%u spd=%d ang=%d ref=%d out=%d\r\n",
+                         "edge %u->%u spd=%d fdk=%d ang=%d ref=%d out=%d\r\n",
                          (unsigned int)old_hall,
                          (unsigned int)new_hall,
                          (int)HALL1.SpeedTemp,
+                         (int)SpeedFdk.Out,
                          (int)HALL1.Angle,
                          (int)RPValue.Act,
                          (int)Speed.qOut);

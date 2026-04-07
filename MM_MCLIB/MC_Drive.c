@@ -27,21 +27,38 @@ uint16_t u16IuOffset = 0;
 uint16_t u16IvOffset = 0;
 
 /* Fixed-angle start/stop position hold */
-#define POS_HOLD_ENTRY_SPD          120
+#define POS_HOLD_ENTRY_SPD          40
 #define POS_HOLD_IQ_STOP            220
 #define POS_HOLD_IQ_START           320
 #define POS_HOLD_ANGLE_DEAD         900
 #define START_ALIGN_PWM_CYCLES      1200
-#define POS_HOLD_IQ_BRAKE           260
+#define POS_HOLD_IQ_BRAKE           0
 #define HOLD_TARGET_HALL            1
 #define HOLD_HALL_STABLE_CNT        8
 #define HOLD_TARGET_BIAS            900
+#define MOTOR_CMD_ACTIVE_TH         40
+#define STOP_PWM_OFF_SPD            20
+#define STOP_BRAKE_ENTRY_SPD        220
+#define STOP_BRAKE_EXIT_SPD         80
+#define STOP_BRAKE_IQ               180
+#define STOP_BRAKE_MAX_CYCLES       700
+#define STOP_PARK_ENABLE            1
+#define STOP_PARK_DELAY_CYCLES      180
+#define STOP_PARK_IQ                70
+#define STOP_PARK_ANGLE_DEAD        700
+#define STOP_PARK_ERR_HYST          120
 
 static uint8_t s_pos_hold_active = 0;
 static uint16_t s_start_align_cnt = 0;
 static int16_t s_pos_hold_target_angle = 0;
 static uint8_t s_hold_hall_stable_cnt = 0;
 static uint8_t s_hold_hall_reached = 0;
+static uint8_t s_stop_brake_active = 0;
+static uint16_t s_stop_brake_cnt = 0;
+static uint16_t s_stop_park_delay_cnt = 0;
+static uint16_t s_stop_park_prev_abs_err = 0;
+static int8_t s_stop_park_polarity = 1;
+static uint8_t s_stop_park_flip_done = 0;
 
 /*------------------ Private functions ----------------*/
 void Motor_Drive(void);
@@ -75,6 +92,11 @@ static int16_t GetFixedAlignAngle(void)
     return (int16_t)(HALL1.CWAngleTab[HOLD_TARGET_HALL] + 5460 + HOLD_TARGET_BIAS);
 }
 
+static uint8_t MotorCmdActive(void)
+{
+    return (RPValue.Act > MOTOR_CMD_ACTIVE_TH) ? 1U : 0U;
+}
+
 /****************************************************************
     Function: Motor_Drive
 ****************************************************************/
@@ -83,6 +105,7 @@ void Motor_Drive(void)
     static uint16_t u16Cnt = 0;
     static uint8_t s_prev_hold = 0;
     uint8_t hall_now;
+    uint8_t cmd_active;
     int16_t ctrlAngle;
     int16_t hold_iq_cmd = 0;
 
@@ -125,6 +148,7 @@ void Motor_Drive(void)
     }
 
     Motor_Model(MotorState);
+    cmd_active = MotorCmdActive();
 
     HALLModuleCalc(&HALL1);
     HALLCheck(&HALL1);
@@ -147,36 +171,79 @@ void Motor_Drive(void)
     ctrlAngle = HALL1.Angle;
     if (s_pos_hold_active)
     {
-        /* Stop phase 1: active electrical braking before angle lock. */
-        if ((!RP.OutEn) && (HALL1.SpeedTemp > POS_HOLD_ENTRY_SPD))
+        if (!cmd_active)
         {
-            IqRef = -POS_HOLD_IQ_BRAKE;
-            ctrlAngle = HALL1.Angle;
+            if (s_stop_brake_active)
+            {
+                IqRef = -STOP_BRAKE_IQ;
+                ctrlAngle = HALL1.Angle;
+            }
+#if STOP_PARK_ENABLE
+            else if (s_stop_park_delay_cnt < STOP_PARK_DELAY_CYCLES)
+            {
+                s_stop_park_delay_cnt++;
+                IqRef = 0;
+                ctrlAngle = HALL1.Angle;
+            }
+            else
+            {
+                int16_t angle_err = WrapAngleErr(s_pos_hold_target_angle, HALL1.Angle);
+                uint16_t abs_err = (angle_err >= 0) ? (uint16_t)angle_err : (uint16_t)(-angle_err);
+
+                if ((s_stop_park_prev_abs_err != 0U) &&
+                    (abs_err > (uint16_t)(s_stop_park_prev_abs_err + STOP_PARK_ERR_HYST)) &&
+                    (s_stop_park_flip_done == 0U))
+                {
+                    s_stop_park_polarity = (int8_t)(-s_stop_park_polarity);
+                    s_stop_park_flip_done = 1;
+                }
+
+                if (abs_err <= STOP_PARK_ANGLE_DEAD)
+                {
+                    IqRef = 0;
+                }
+                else
+                {
+                    int16_t sign = (angle_err >= 0) ? 1 : -1;
+                    IqRef = (int16_t)(sign * s_stop_park_polarity * STOP_PARK_IQ);
+                }
+                s_stop_park_prev_abs_err = abs_err;
+                ctrlAngle = s_pos_hold_target_angle;
+            }
+#else
+            else
+            {
+                IqRef = 0;
+                ctrlAngle = HALL1.Angle;
+            }
+#endif
         }
         else
         {
             int16_t angle_err = WrapAngleErr(s_pos_hold_target_angle, HALL1.Angle);
 
-            if ((s_start_align_cnt < START_ALIGN_PWM_CYCLES && RP.OutEn) || (!s_hold_hall_reached))
+            if (s_start_align_cnt < START_ALIGN_PWM_CYCLES && cmd_active)
             {
                 hold_iq_cmd = POS_HOLD_IQ_START;
+                /* Start-align phase: always provide torque, avoid dead-zone stall. */
+                IqRef = (angle_err >= 0) ? hold_iq_cmd : -hold_iq_cmd;
             }
             else
             {
                 hold_iq_cmd = POS_HOLD_IQ_STOP;
-            }
 
-            if (angle_err > POS_HOLD_ANGLE_DEAD)
-            {
-                IqRef = hold_iq_cmd;
-            }
-            else if (angle_err < -POS_HOLD_ANGLE_DEAD)
-            {
-                IqRef = -hold_iq_cmd;
-            }
-            else
-            {
-                IqRef = 0;
+                if (angle_err > POS_HOLD_ANGLE_DEAD)
+                {
+                    IqRef = hold_iq_cmd;
+                }
+                else if (angle_err < -POS_HOLD_ANGLE_DEAD)
+                {
+                    IqRef = -hold_iq_cmd;
+                }
+                else
+                {
+                    IqRef = 0;
+                }
             }
 
             ctrlAngle = s_pos_hold_target_angle;
@@ -276,10 +343,17 @@ void MotorIdle(void)
 {
     s_pos_hold_target_angle = GetFixedAlignAngle();
 
-    if (RP.OutEn)
+    if (MotorCmdActive())
     {
+        s_stop_brake_active = 0;
+        s_stop_brake_cnt = 0;
+        s_stop_park_delay_cnt = 0;
+        s_stop_park_prev_abs_err = 0;
+        s_stop_park_polarity = 1;
+        s_stop_park_flip_done = 0;
+
         /* Start alignment: always align to the same angle before run. */
-        if ((s_start_align_cnt < START_ALIGN_PWM_CYCLES) || (!s_hold_hall_reached))
+        if (s_start_align_cnt < START_ALIGN_PWM_CYCLES)
         {
             s_pos_hold_active = 1;
             s_start_align_cnt++;
@@ -298,10 +372,46 @@ void MotorIdle(void)
         s_start_align_cnt = 0;
         s_hold_hall_reached = 0;
         s_hold_hall_stable_cnt = 0;
-        /* Stop request: always keep position-hold state enabled.
-           Motor_Drive will brake first, then lock to fixed angle. */
-        s_pos_hold_active = 1;
-        TIM_CtrlPWMOutputs(TIM1, ENABLE);
+        if (s_stop_brake_active == 0U)
+        {
+            s_stop_park_delay_cnt = 0;
+            s_stop_park_prev_abs_err = 0;
+            s_stop_park_polarity = 1;
+            s_stop_park_flip_done = 0;
+        }
+        if ((HALL1.SpeedTemp >= STOP_BRAKE_ENTRY_SPD) && (s_stop_brake_cnt < STOP_BRAKE_MAX_CYCLES))
+        {
+            s_stop_brake_active = 1;
+            s_stop_brake_cnt++;
+            s_pos_hold_active = 1;
+            TIM_CtrlPWMOutputs(TIM1, ENABLE);
+        }
+        else if ((HALL1.SpeedTemp > STOP_BRAKE_EXIT_SPD) &&
+                 (s_stop_brake_active != 0U) &&
+                 (s_stop_brake_cnt < STOP_BRAKE_MAX_CYCLES))
+        {
+            s_stop_brake_cnt++;
+            s_pos_hold_active = 1;
+            TIM_CtrlPWMOutputs(TIM1, ENABLE);
+        }
+        else
+        {
+            s_stop_brake_active = 0;
+            s_stop_brake_cnt = 0;
+#if STOP_PARK_ENABLE
+            s_pos_hold_active = 1;
+            TIM_CtrlPWMOutputs(TIM1, ENABLE);
+#else
+            s_pos_hold_active = 0;
+            TIM_CtrlPWMOutputs(TIM1, DISABLE);
+            CurIQ.qdSum = 0;
+            CurIQ.qOut = 0;
+            CurID.qdSum = 0;
+            CurID.qOut = 0;
+            Speed.qdSum = 0;
+            Speed.qOut = 0;
+#endif
+        }
         MotorState = IDLESTATE;
     }
 }
@@ -336,7 +446,7 @@ void MotorBrake(void)
 ****************************************************************/
 void MotorRun(void)
 {
-    if (RP.OutEn)
+    if (MotorCmdActive())
     {
         s_pos_hold_active = 0;
         MotorState = RUNSTATE;
@@ -344,6 +454,20 @@ void MotorRun(void)
     else
     {
         s_start_align_cnt = 0;
+        s_stop_brake_active = 0;
+        s_stop_brake_cnt = 0;
+        s_stop_park_delay_cnt = 0;
+        s_stop_park_prev_abs_err = 0;
+        s_stop_park_polarity = 1;
+        s_stop_park_flip_done = 0;
+        s_pos_hold_active = 0;
+        TIM_CtrlPWMOutputs(TIM1, DISABLE);
+        CurIQ.qdSum = 0;
+        CurIQ.qOut = 0;
+        CurID.qdSum = 0;
+        CurID.qOut = 0;
+        Speed.qdSum = 0;
+        Speed.qOut = 0;
         MotorState = IDLESTATE;
     }
 }
@@ -353,7 +477,7 @@ void MotorRun(void)
 ****************************************************************/
 void MotorError(void)
 {
-    if (RP.OutEn)
+    if (MotorCmdActive())
     {
         TIM_CtrlPWMOutputs(TIM1, DISABLE);
         TIM1->CCR1 = 0;
@@ -379,6 +503,12 @@ void MotorError(void)
         FAULT.Byte = 0;
         s_pos_hold_active = 0;
         s_start_align_cnt = 0;
+        s_stop_brake_active = 0;
+        s_stop_brake_cnt = 0;
+        s_stop_park_delay_cnt = 0;
+        s_stop_park_prev_abs_err = 0;
+        s_stop_park_polarity = 1;
+        s_stop_park_flip_done = 0;
         MotorState = IDLESTATE;
     }
 }

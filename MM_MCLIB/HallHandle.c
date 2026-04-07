@@ -20,6 +20,8 @@ volatile uint8_t g_hall_edge_count = 0;
 volatile uint8_t g_hall_edge_old_buf[32] = {0};
 volatile uint8_t g_hall_edge_new_buf[32] = {0};
 
+#define HALL_NO_EDGE_TIMEOUT_CNT  2500U
+
 /*------------------ Private functions ----------------*/
 void HALLModuleInit(HALLType *u);
 void HALLModuleCalc(HALLType *u);
@@ -81,6 +83,7 @@ void HALLModuleInit(HALLType *u)
 void HALLModuleCalc(HALLType *u)
 {
     static uint8_t i = 0;
+    static uint16_t s_no_edge_cnt = 0;
     uint8_t j = 0;
 
     u->RunHallValue = HALL_ReadHallPorts();
@@ -97,6 +100,7 @@ void HALLModuleCalc(HALLType *u)
         g_hall_edge_head = (uint8_t)((g_hall_edge_head + 1) & 0x1F);
         g_hall_edge_count++;
 
+        s_no_edge_cnt = 0;
         u->Time100msCNT = 0;
 
         i++;
@@ -130,6 +134,17 @@ void HALLModuleCalc(HALLType *u)
         else
         {
             u->Angle = u->CWAngleTab[u->RunHallValue] + CWShift;
+        }
+    }
+    else
+    {
+        if (s_no_edge_cnt < 0xFFFFU) { s_no_edge_cnt++; }
+        if (s_no_edge_cnt >= HALL_NO_EDGE_TIMEOUT_CNT)
+        {
+            /* No Hall edge for a while: treat as zero speed to avoid stale high-speed feedback. */
+            u->SpeedTemp = 0;
+            u->IncAngle = 0;
+            u->IncAngleMax = 0;
         }
     }
 
