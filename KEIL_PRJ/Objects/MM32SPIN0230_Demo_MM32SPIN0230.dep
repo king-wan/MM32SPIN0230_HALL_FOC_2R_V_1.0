@@ -1,6 +1,6 @@
 Dependencies for Project 'MM32SPIN0230_Demo', Target 'MM32SPIN0230': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
-F (..\USER\main.c)(0x69C671D9)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\main.o --omf_browse .\objects\main.crf --depend .\objects\main.d)
+F (..\USER\main.c)(0x69D4F8BB)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\main.o --omf_browse .\objects\main.crf --depend .\objects\main.d)
 I (..\USER\inc\main.h)(0x643774C2)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
@@ -45,7 +45,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -59,10 +59,10 @@ I (..\USER\inc\user_function.h)(0x69C676EE)
 I (..\MM_MCLIB\inc\MC_Drive.h)(0x643E51F2)
 I (..\MM_MCLIB\inc\Diagnose.h)(0x642F7B55)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)
-I (..\MM_MCLIB\inc\HallHandle.h)(0x644621C4)
+I (..\MM_MCLIB\inc\HallHandle.h)(0x69D4F44D)
 I (..\MM_MCLIB\inc\PID.h)(0x64461CA9)
-F (..\USER\board.c)(0x6462F38B)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\board.o --omf_browse .\objects\board.crf --depend .\objects\board.d)
-I (..\USER\inc\board.h)(0x645CA0A0)
+F (..\USER\board.c)(0x69D4E77C)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\board.o --omf_browse .\objects\board.crf --depend .\objects\board.d)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\MM32SPIN0230\Include\mm32_device.h)(0x6433A4FE)
 I (..\MM32SPIN0230\Include\mm32spin0230.h)(0x6433A4FE)
@@ -118,7 +118,7 @@ I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
 I (..\USER\inc\parameter.h)(0x643E03BC)
 I (..\USER\inc\user_function.h)(0x69C676EE)
-F (..\USER\mm32_it.c)(0x6462ECF7)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mm32_it.o --omf_browse .\objects\mm32_it.crf --depend .\objects\mm32_it.d)
+F (..\USER\mm32_it.c)(0x69D35D83)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mm32_it.o --omf_browse .\objects\mm32_it.crf --depend .\objects\mm32_it.d)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\MM32SPIN0230\HAL_Lib\inc\HAL_conf.h)(0x6433A4FC)
@@ -162,7 +162,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -174,7 +174,7 @@ I (..\DRIVE\inc\drv_div.h)(0x641AC2BE)
 I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
 I (..\MM_MCLIB\inc\MC_Drive.h)(0x643E51F2)
-F (..\USER\user_function.c)(0x69C66B13)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\user_function.o --omf_browse .\objects\user_function.crf --depend .\objects\user_function.d)
+F (..\USER\user_function.c)(0x69D4F4F2)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\user_function.o --omf_browse .\objects\user_function.crf --depend .\objects\user_function.d)
 I (..\USER\inc\user_function.h)(0x69C676EE)
 I (..\MM32SPIN0230\Include\mm32_device.h)(0x6433A4FE)
 I (..\MM32SPIN0230\Include\mm32spin0230.h)(0x6433A4FE)
@@ -219,7 +219,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\USER\inc\parameter.h)(0x643E03BC)
 I (..\MM_MCLIB\inc\pwm_gen.h)(0x645CA6AE)
-I (..\MM_MCLIB\inc\HallHandle.h)(0x644621C4)
+I (..\MM_MCLIB\inc\HallHandle.h)(0x69D4F44D)
 I (..\MM_MCLIB\inc\PID.h)(0x64461CA9)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)
 F (..\USER\inc\parameter.h)(0x643E03BC)()
@@ -1024,7 +1024,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -1038,7 +1038,7 @@ I (..\USER\inc\main.h)(0x643774C2)
 I (..\MM_MCLIB\inc\pwm_gen.h)(0x645CA6AE)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)
 I (..\USER\inc\parameter.h)(0x643E03BC)
-F (..\MM_MCLIB\FOC_Math.c)(0x69C66C97)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\foc_math.o --omf_browse .\objects\foc_math.crf --depend .\objects\foc_math.d)
+F (..\MM_MCLIB\FOC_Math.c)(0x69D4E4DE)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\foc_math.o --omf_browse .\objects\foc_math.crf --depend .\objects\foc_math.d)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)
 I (..\MM32SPIN0230\Include\mm32_device.h)(0x6433A4FE)
 I (..\MM32SPIN0230\Include\mm32spin0230.h)(0x6433A4FE)
@@ -1083,7 +1083,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -1094,7 +1094,7 @@ I (..\DRIVE\inc\drv_iwdg.h)(0x62BD32A6)
 I (..\DRIVE\inc\drv_div.h)(0x641AC2BE)
 I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
-F (..\MM_MCLIB\MC_Drive.c)(0x69C674E5)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mc_drive.o --omf_browse .\objects\mc_drive.crf --depend .\objects\mc_drive.d)
+F (..\MM_MCLIB\MC_Drive.c)(0x69D4F980)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\mc_drive.o --omf_browse .\objects\mc_drive.crf --depend .\objects\mc_drive.d)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\MM32SPIN0230\HAL_Lib\inc\HAL_conf.h)(0x6433A4FC)
@@ -1138,7 +1138,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -1150,14 +1150,14 @@ I (..\DRIVE\inc\drv_div.h)(0x641AC2BE)
 I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
 I (..\MM_MCLIB\inc\PID.h)(0x64461CA9)
-I (..\MM_MCLIB\inc\HallHandle.h)(0x644621C4)
+I (..\MM_MCLIB\inc\HallHandle.h)(0x69D4F44D)
 I (..\MM_MCLIB\inc\MC_Drive.h)(0x643E51F2)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)
 I (..\MM_MCLIB\inc\pwm_gen.h)(0x645CA6AE)
 I (..\USER\inc\user_function.h)(0x69C676EE)
 I (..\MM_MCLIB\inc\Diagnose.h)(0x642F7B55)
 I (..\USER\inc\parameter.h)(0x643E03BC)
-F (..\MM_MCLIB\PID.c)(0x69C66B61)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\pid.o --omf_browse .\objects\pid.crf --depend .\objects\pid.d)
+F (..\MM_MCLIB\PID.c)(0x69D4F4F2)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\pid.o --omf_browse .\objects\pid.crf --depend .\objects\pid.d)
 I (..\MM_MCLIB\inc\PID.h)(0x64461CA9)
 I (..\MM_MCLIB\inc\MC_Drive.h)(0x643E51F2)
 I (..\MM32SPIN0230\Include\mm32_device.h)(0x6433A4FE)
@@ -1202,7 +1202,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\USER\inc\user_function.h)(0x69C676EE)
-F (..\MM_MCLIB\HallHandle.c)(0x69C66BC6)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\hallhandle.o --omf_browse .\objects\hallhandle.crf --depend .\objects\hallhandle.d)
+F (..\MM_MCLIB\HallHandle.c)(0x69D4F46E)(--c99 -c --cpu Cortex-M0 -g -O2 --apcs=interwork --split_sections -I ..\MM32SPIN0230\Include -I ..\MM32SPIN0230\HAL_Lib\inc -I ..\DRIVE\inc -I ..\SYSTEM\inc -I ..\USER\inc -I ..\M1_CONTROL\inc -I ..\MM_MCLIB\inc -I ..\MM_MCLIB\inc-I.\RTE\_MM32SPIN0230-IC:\Keil_v5\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\Packs\MindMotion\MM32SPIN0230_DFP\1.1.2\Device\MM32G5332D-D__UVISION_VERSION="536" -D_RTE_ -D_RTE_ -DUSE_STDPERIPH_DRIVER -DUSE_5V-o .\objects\hallhandle.o --omf_browse .\objects\hallhandle.crf --depend .\objects\hallhandle.d)
 I (..\USER\inc\drv_inc.h)(0x643E0621)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (..\MM32SPIN0230\HAL_Lib\inc\HAL_conf.h)(0x6433A4FC)
@@ -1246,7 +1246,7 @@ I (..\MM32SPIN0230\HAL_Lib\inc\hal_tim.h)(0x645CA4A2)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_usart.h)(0x6433A4FC)
 I (..\MM32SPIN0230\HAL_Lib\inc\hal_uid.h)(0x6433A4FC)
 I (..\SYSTEM\inc\systick.h)(0x641AC2D0)
-I (..\USER\inc\board.h)(0x645CA0A0)
+I (..\USER\inc\board.h)(0x69D4E668)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (..\DRIVE\inc\drv_adc.h)(0x64255A3C)
 I (..\DRIVE\inc\drv_comp.h)(0x641AC990)
@@ -1257,7 +1257,7 @@ I (..\DRIVE\inc\drv_iwdg.h)(0x62BD32A6)
 I (..\DRIVE\inc\drv_div.h)(0x641AC2BE)
 I (..\USER\inc\mm32_it.h)(0x641C0DF6)
 I (..\USER\inc\main.h)(0x643774C2)
-I (..\MM_MCLIB\inc\HallHandle.h)(0x644621C4)
+I (..\MM_MCLIB\inc\HallHandle.h)(0x69D4F44D)
 I (..\MM_MCLIB\inc\MC_Drive.h)(0x643E51F2)
 I (..\USER\inc\user_function.h)(0x69C676EE)
 I (..\MM_MCLIB\inc\FOC_Math.h)(0x64461C46)

@@ -196,6 +196,7 @@ extern void Board_USART_DMA_Init(uint32_t baudrate);
 extern void Board_USART_DMA_StartRx(uint8_t *buffer, uint16_t length);
 extern void Board_USART_DMA_StartTx(uint8_t *buffer, uint16_t length);
 extern void Board_USART_DMA_Task(void);
+extern void Board_USART_SendString(const char *str);
 
 extern volatile uint32_t USART_TX_DMA_InterruptFlag;
 extern volatile uint32_t USART_RX_DMA_InterruptFlag;

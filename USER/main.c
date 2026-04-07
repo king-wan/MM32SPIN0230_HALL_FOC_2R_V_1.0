@@ -2,23 +2,10 @@
  * @file     main.c
  * @author   MindMotion Motor Team : Wesson
  * @brief    This file provides the main functions and test samples.
- *
- * @attention
- *
- * THE EXISTING FIRMWARE IS ONLY FOR REFERENCE, WHICH IS DESIGNED TO PROVIDE
- * CUSTOMERS WITH CODING INFORMATION ABOUT THEIR PRODUCTS SO THEY CAN SAVE
- * TIME. THEREFORE, MINDMOTION SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT OR
- * CONSEQUENTIAL DAMAGES ABOUT ANY CLAIMS ARISING OUT OF THE CONTENT OF SUCH
- * HARDWARE AND/OR THE USE OF THE CODING INFORMATION CONTAINED HEREIN IN
- * CONNECTION WITH PRODUCTS MADE BY CUSTOMERS.
- *
- * <H2><CENTER>&COPY; COPYRIGHT MINDMOTION </CENTER></H2>
  */
 
-/** Define to prevent recursive inclusion */
 #define _MAIN_C_
 
-/** Files includes */
 #include "main.h"
 #include "drv_inc.h"
 #include "board.h"
@@ -28,100 +15,218 @@
 #include "FOC_Math.h"
 #include "HallHandle.h"
 #include "PID.h"
+#include <stdio.h>
 
-/**
- * @addtogroup MM32_User_Layer
- * @{
- */
 int16_t M1FaultID, M1FaultID_Record;
-/**
- * @addtogroup User_Main
- * @{
- */
+
+#define SPEED_START_THRESHOLD    120
+#define SPEED_STOP_THRESHOLD      80
+#define HALL_DEBUG_PRINT          0
+#define HALL_EDGE_PRINT_ONLY      1
+#define HALL_START_STOP_PRINT     1
+#define STOP_REPORT_SPEED_TH      25
+#define STOP_REPORT_STABLE_CNT    20
+#define STOP_REPORT_DELAY_CNT     120
 
 int main(void)
 {
-	 /* Configure the system clock */
     Systick_Init(SystemCoreClock / 1000);
     Systick_Delay(200);
-	
-	 /* Initialize  motor control parameters */
+
     Init_Parameter();
-	
-	 /* Initialize all GPIO */
     Bsp_Gpio_Init();
-	
-	 /* Initialize all configured peripherals */
     Peripheral_Init();
-	
-	 /* Initialize interrupts */
     Interrupt_Init();
-	
-	 /* Infinite loop */
-    while(1)
+
+    while (1)
     {
         Board_USART_DMA_Task();
-		/*IWDG_ReloadCounter*/
         IWDG_RELOAD_COUNT();
-		
-		if(TIMFlag.PWMIn == 1)		//电流、电压诊断
-		{
-			TIMFlag.PWMIn = 0;
-			
-			//电流保护
-			if(ADC_Structure.IBusInput <= 0)
-			{
-				ADC_Structure.IBusInput = 0;
-				ADC_Structure.IBusAvrg = 0;
-			}
-			else
-			{
-				ADC_Structure.IBusInput = (IsumGain*ADC_Structure.IBusInput)>>12;
-				ADC_Structure.IBusAvrg = (ADC_Structure.IBusAvrg*7 + ADC_Structure.IBusInput)>>3;
-			}
-			
-			//过流保护
-			Diagnose_IBUS_ADC(ADC_Structure.IBusAvrg);
 
-		}
-		
-		if(TIMFlag.Delay5ms == 1)	//速度环调节
-		{
-			TIMFlag.Delay5ms = 0;
-			
-			//参考速度归一化
-			CalcNormalization(ADC_Structure.SPEED,&RP);
+        if (TIMFlag.PWMIn == 1)
+        {
+            TIMFlag.PWMIn = 0;
 
-			//加减速控制
-			RPValue.Dest = RP.Out;
-			LoopCmp_Cal(&RPValue);
-			
-			//速度环
-			SpeedFdk.NewData = HALL1.SpeedTemp;
-			MovingAvgCal(&SpeedFdk);
-			
-			Speed.qInRef = RPValue.Act;
-			Speed.qInMeas = SpeedFdk.Out;
-			CalcPI(&Speed);
-			
-			//========================
-			if (SpeedFdk.Out <= 500) IdRef = 0;
-			else if (SpeedFdk.Out >= 800) IdRef = -350;
-			else IdRef = -((int32_t)(SpeedFdk.Out - 500) * 350 / 1400);
-			//========================
-			
-			//电压保护 缺相保护
-			Diagnose_VBUS_ADC(ADC_Structure.VBusInput);
-		}
+            if (ADC_Structure.IBusInput <= 0)
+            {
+                ADC_Structure.IBusInput = 0;
+                ADC_Structure.IBusAvrg = 0;
+            }
+            else
+            {
+                ADC_Structure.IBusInput = (IsumGain * ADC_Structure.IBusInput) >> 12;
+                ADC_Structure.IBusAvrg = (ADC_Structure.IBusAvrg * 7 + ADC_Structure.IBusInput) >> 3;
+            }
+
+            Diagnose_IBUS_ADC(ADC_Structure.IBusAvrg);
+        }
+
+        if (TIMFlag.Delay5ms == 1)
+        {
+            static uint8_t s_speed_enable = 0;
+            static uint8_t s_prev_outen = 0;
+            static uint8_t s_wait_stop_report = 0;
+            static uint8_t s_stop_stable_cnt = 0;
+            static uint16_t s_stop_delay_cnt = 0;
+            static uint8_t s_stop_last_hall = 0;
+
+            TIMFlag.Delay5ms = 0;
+
+            CalcNormalization(ADC_Structure.SPEED, &RP);
+
+            /* minimum start speed and stop hysteresis */
+            if (RP.OutEn == 0)
+            {
+                s_speed_enable = 0;
+                RP.Out = 0;
+            }
+            else if (s_speed_enable == 0)
+            {
+                if (RP.Out >= SPEED_START_THRESHOLD)
+                {
+                    s_speed_enable = 1;
+                }
+                else
+                {
+                    RP.Out = 0;
+                }
+            }
+            else
+            {
+                if (RP.Out <= SPEED_STOP_THRESHOLD)
+                {
+                    s_speed_enable = 0;
+                    RP.Out = 0;
+                }
+            }
+
+            RPValue.Dest = RP.Out;
+            LoopCmp_Cal(&RPValue);
+
+            SpeedFdk.NewData = HALL1.SpeedTemp;
+            MovingAvgCal(&SpeedFdk);
+
+            Speed.qInRef = RPValue.Act;
+            Speed.qInMeas = SpeedFdk.Out;
+            CalcPI(&Speed);
+
+            if (SpeedFdk.Out <= 500)
+            {
+                IdRef = 0;
+            }
+            else if (SpeedFdk.Out >= 800)
+            {
+                IdRef = -350;
+            }
+            else
+            {
+                IdRef = -((int32_t)(SpeedFdk.Out - 500) * 350 / 300);
+            }
+
+            Diagnose_VBUS_ADC(ADC_Structure.VBusInput);
+
+#if HALL_START_STOP_PRINT
+            uint8_t cmd_active = (RPValue.Act > 0) ? 1U : 0U;
+            if ((cmd_active != 0U) && (s_prev_outen == 0U))
+            {
+                char evt_buf[96];
+                snprintf(evt_buf, sizeof(evt_buf),
+                         "START hall=%u ang=%d spd=%d\r\n",
+                         (unsigned int)HALL_ReadHallPorts(),
+                         (int)HALL1.Angle,
+                         (int)HALL1.SpeedTemp);
+                Board_USART_SendString(evt_buf);
+                s_wait_stop_report = 0;
+                s_stop_stable_cnt = 0;
+            }
+            else if ((cmd_active == 0U) && (s_prev_outen != 0U))
+            {
+                s_wait_stop_report = 1;
+                s_stop_stable_cnt = 0;
+                s_stop_delay_cnt = 0;
+                s_stop_last_hall = HALL_ReadHallPorts();
+            }
+
+            if (s_wait_stop_report != 0)
+            {
+                uint8_t hall_now = HALL_ReadHallPorts();
+                s_stop_delay_cnt++;
+
+                if (hall_now == s_stop_last_hall)
+                {
+                    if (s_stop_stable_cnt < 250U) { s_stop_stable_cnt++; }
+                }
+                else
+                {
+                    s_stop_last_hall = hall_now;
+                    s_stop_stable_cnt = 0;
+                }
+
+                if ((s_stop_delay_cnt >= STOP_REPORT_DELAY_CNT) &&
+                    (s_stop_stable_cnt >= STOP_REPORT_STABLE_CNT))
+                {
+                    char evt_buf[96];
+                    snprintf(evt_buf, sizeof(evt_buf),
+                             "STOP  hall=%u ang=%d spd=%d\r\n",
+                             (unsigned int)hall_now,
+                             (int)HALL1.Angle,
+                             (int)HALL1.SpeedTemp);
+                    Board_USART_SendString(evt_buf);
+                    s_wait_stop_report = 0;
+                    s_stop_stable_cnt = 0;
+                    s_stop_delay_cnt = 0;
+                }
+            }
+
+            s_prev_outen = cmd_active;
+#endif
+        }
+
+#if HALL_DEBUG_PRINT
+#if HALL_EDGE_PRINT_ONLY
+        {
+            while (g_hall_edge_count != 0)
+            {
+                char dbg_buf[128];
+                uint8_t old_hall;
+                uint8_t new_hall;
+
+                __disable_irq();
+                old_hall = g_hall_edge_old_buf[g_hall_edge_tail];
+                new_hall = g_hall_edge_new_buf[g_hall_edge_tail];
+                g_hall_edge_tail = (uint8_t)((g_hall_edge_tail + 1) & 0x1F);
+                g_hall_edge_count--;
+                __enable_irq();
+
+                snprintf(dbg_buf, sizeof(dbg_buf),
+                         "edge %u->%u spd=%d ang=%d ref=%d out=%d\r\n",
+                         (unsigned int)old_hall,
+                         (unsigned int)new_hall,
+                         (int)HALL1.SpeedTemp,
+                         (int)HALL1.Angle,
+                         (int)RPValue.Act,
+                         (int)Speed.qOut);
+                Board_USART_SendString(dbg_buf);
+            }
+        }
+#else
+        if (TIMFlag.Delay200ms == 1)
+        {
+            char dbg_buf[128];
+            TIMFlag.Delay200ms = 0;
+
+            snprintf(dbg_buf, sizeof(dbg_buf),
+                     "hall=%u spd=%d ang=%d ref=%d out=%d raw=%u\r\n",
+                     (unsigned int)HALL1.RunHallValue,
+                     (int)HALL1.SpeedTemp,
+                     (int)HALL1.Angle,
+                     (int)RPValue.Act,
+                     (int)Speed.qOut,
+                     (unsigned int)HALL_ReadHallPorts());
+            Board_USART_SendString(dbg_buf);
+        }
+#endif
+#endif
     }
 }
-
-/**
-  * @}
-*/
-
-/**
-  * @}
-*/
-
 

@@ -377,8 +377,8 @@ void LoopCmp_Init(void)
 	RPValue.Dest = 0;
 	RPValue.Max = 2200;
 	RPValue.Min = 0;
-	RPValue.Inc = 3;
-	RPValue.Dec = 3;
+	RPValue.Inc = 2;
+	RPValue.Dec = 4;
 }
 
 /*************************************
@@ -474,3 +474,4 @@ void CalcNormalization(u16 value,NormalizationType *u)
 
 	}
 }
+

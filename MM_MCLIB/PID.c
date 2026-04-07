@@ -4,103 +4,104 @@
 #include "user_function.h"
 
 /*------------------- Private variables ---------------*/
-tPIParm CurID;		//ID环
-tPIParm CurIQ;		//IQ环
-tPIParm Speed;		//速度环
-tPIParm PLL;		//锁相环
+tPIParm CurID;
+tPIParm CurIQ;
+tPIParm Speed;
+tPIParm PLL;
 
 /****************************************************************
-	函数名：InitPI
-	描述：位置式PI初始化
-	输入：无
-	输出：无
+    Function: InitPI
 ****************************************************************/
 void InitPI(void)
 {
-	CurID.qKp = 9000;				//Q15
-	CurID.qKi = 200;
-	CurID.qOutMax = 4000;
-	CurID.qOutMin = -4000;
-	CurID.qdSum = 0;
-	CurID.qInMeas = 0;
-	CurID.qOut = 0;
-	
-	CurIQ.qKp = 9000;
-	CurIQ.qKi = 200;
-	CurIQ.qOutMax = 30000;
-	CurIQ.qOutMin = -30000;
-	CurIQ.qdSum = 0;
-	CurIQ.qInMeas = 0;
-	CurIQ.qOut = 0;
-	
-	Speed.qKp = 6000;
-	Speed.qKi = 80;
-	Speed.qOutMax = IshuntGain * 5;
-	Speed.qOutMin = -IshuntGain * 5;
-	Speed.qdSum = 0;
-	Speed.qInMeas = 0;
-	Speed.qOut = 0;
-	
-	PLL.qKp = 2000;		//1<<15;
-	PLL.qKi = 10;		//1800;
-	PLL.qOutMax = 500;
-	PLL.qOutMin = -500;
-	PLL.qdSum = 0;
-	PLL.qInRef = 0;
-	PLL.qInMeas = 0;
-	PLL.qOut = 0;
+    CurID.qKp = 9000;
+    CurID.qKi = 200;
+    CurID.qOutMax = 4000;
+    CurID.qOutMin = -4000;
+    CurID.qdSum = 0;
+    CurID.qInMeas = 0;
+    CurID.qOut = 0;
+
+    CurIQ.qKp = 9000;
+    CurIQ.qKi = 200;
+    CurIQ.qOutMax = 30000;
+    CurIQ.qOutMin = -30000;
+    CurIQ.qdSum = 0;
+    CurIQ.qInMeas = 0;
+    CurIQ.qOut = 0;
+
+    Speed.qKp = 5800;
+    Speed.qKi = 65;
+    Speed.qOutMax = IshuntGain * 5;
+    Speed.qOutMin = 0;
+    Speed.qdSum = 0;
+    Speed.qInMeas = 0;
+    Speed.qOut = 0;
+
+    PLL.qKp = 2000;
+    PLL.qKi = 10;
+    PLL.qOutMax = 500;
+    PLL.qOutMin = -500;
+    PLL.qdSum = 0;
+    PLL.qInRef = 0;
+    PLL.qInMeas = 0;
+    PLL.qOut = 0;
 }
 
 /****************************************************************
-	函数名：CalcPI1
-	描述：位置式PI计算
-	输入：pParm---位置式PI结构体
-	输出：无
+    Function: CalcPI
 ****************************************************************/
 void CalcPI(tPIParm *pParm)
 {
-	signed int   Error;
-	signed long  Up;
-	signed long  Ui;
-	
-	//Calc Error
-	Error = pParm->qInRef - pParm->qInMeas;
-	
-	//Calc proportional
-	Up = (pParm-> qKp * Error)>>15;
-	
-	//Calc integral
-	pParm->qdSum = pParm->qdSum + pParm->qKi* Error;
-	
-	//Limit integral 
-	if(pParm->qdSum >= (pParm->qOutMax<<15))		//CurIQ.qOutMax<<15
-	{
-		pParm->qdSum = (pParm->qOutMax<<15);
-	}
-	else if(pParm->qdSum <= (pParm->qOutMin<<15))
-	{
-		pParm->qdSum = (pParm->qOutMin<<15);
-	}
-	else
-	{}
-	
-	Ui = pParm->qdSum>>15;
-	
-	//Out = Up + Ui 
-	pParm->qOut = Up + Ui;
-		
-	//Out Limit
-	if(pParm->qOut > pParm->qOutMax)
-	{
-		pParm->qOut = pParm->qOutMax ;
-	}
-	else if(pParm->qOut < pParm->qOutMin)
-	{
-		pParm->qOut = pParm->qOutMin;
-	}
-	else
-	{
-		
-	}
+    int32_t error;
+    int32_t up;
+    int32_t ui;
+    int32_t out;
+    int32_t daux;
+    int32_t i_limit_max;
+    int32_t i_limit_min;
+
+    error = (int32_t)pParm->qInRef - (int32_t)pParm->qInMeas;
+
+    /* Proportional term (Q15 gain). */
+    up = ((int32_t)pParm->qKp * error) >> 15;
+
+    if (pParm->qKi == 0)
+    {
+        pParm->qdSum = 0;
+        ui = 0;
+    }
+    else
+    {
+        /* Integral stored as pure accumulated error with explicit anti-windup limits. */
+        i_limit_max = ((int32_t)pParm->qOutMax << 15) / (int32_t)pParm->qKi;
+        i_limit_min = ((int32_t)pParm->qOutMin << 15) / (int32_t)pParm->qKi;
+
+        daux = pParm->qdSum + error;
+        if (daux > i_limit_max)
+        {
+            daux = i_limit_max;
+        }
+        else if (daux < i_limit_min)
+        {
+            daux = i_limit_min;
+        }
+
+        pParm->qdSum = daux;
+        ui = (pParm->qdSum * (int32_t)pParm->qKi) >> 15;
+    }
+
+    out = up + ui;
+    if (out > pParm->qOutMax)
+    {
+        out = pParm->qOutMax;
+    }
+    else if (out < pParm->qOutMin)
+    {
+        out = pParm->qOutMin;
+    }
+
+    pParm->qOut = (int16_t)out;
 }
+
 

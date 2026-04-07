@@ -418,6 +418,21 @@ void Board_USART_DMA_Task(void)
         Board_USART_DMA_StartRx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
     }
 }
+
+void Board_USART_SendString(const char *str)
+{
+    if (str == NULL)
+    {
+        return;
+    }
+
+    while (*str != '\0')
+    {
+        while (USART_GetFlagStatus(USART_DMA_INSTANCE, USART_FLAG_TXE) == RESET) {}
+        USART_SendData(USART_DMA_INSTANCE, (uint8_t)(*str));
+        str++;
+    }
+}
 /**
   * @brief Initialize all configured peripherals
   * @param None
