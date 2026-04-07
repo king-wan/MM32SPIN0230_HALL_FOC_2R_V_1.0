@@ -32,6 +32,9 @@ uint16_t u16IvOffset = 0;
 #define POS_HOLD_IQ_START           320
 #define POS_HOLD_ANGLE_DEAD         900
 #define START_ALIGN_PWM_CYCLES      1200
+#define START_LOCK_PWM_CYCLES       900
+#define START_KICK_IQ               220
+#define START_KICK_ADV_ANGLE        1800
 #define POS_HOLD_IQ_BRAKE           0
 #define HOLD_TARGET_HALL            1
 #define HOLD_HALL_STABLE_CNT        8
@@ -224,9 +227,20 @@ void Motor_Drive(void)
 
             if (s_start_align_cnt < START_ALIGN_PWM_CYCLES && cmd_active)
             {
-                hold_iq_cmd = POS_HOLD_IQ_START;
-                /* Start-align phase: always provide torque, avoid dead-zone stall. */
-                IqRef = (angle_err >= 0) ? hold_iq_cmd : -hold_iq_cmd;
+                if (s_start_align_cnt < START_LOCK_PWM_CYCLES)
+                {
+                    hold_iq_cmd = POS_HOLD_IQ_START;
+                    /* Lock first: move rotor close to target electrical angle. */
+                    IqRef = (angle_err >= 0) ? hold_iq_cmd : -hold_iq_cmd;
+                    ctrlAngle = s_pos_hold_target_angle;
+                }
+                else
+                {
+                    int16_t dir = (HALL1.CMDDIR >= 0) ? 1 : -1;
+                    /* Short kick: guarantee standstill breakaway torque. */
+                    IqRef = (int16_t)(dir * START_KICK_IQ);
+                    ctrlAngle = (int16_t)(s_pos_hold_target_angle + dir * START_KICK_ADV_ANGLE);
+                }
             }
             else
             {
@@ -244,9 +258,8 @@ void Motor_Drive(void)
                 {
                     IqRef = 0;
                 }
+                ctrlAngle = s_pos_hold_target_angle;
             }
-
-            ctrlAngle = s_pos_hold_target_angle;
         }
     }
 

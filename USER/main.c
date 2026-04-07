@@ -30,7 +30,7 @@ int16_t M1FaultID, M1FaultID_Record;
 #define STOP_REPORT_TIMEOUT_CNT   400
 #define CMD_EVENT_DEBOUNCE_CNT     6
 #define ZERO_REF_CLAMP_TH         40
-#define START_RUN_SNAPSHOT_CNT     40
+#define RUN200_PERIOD_CNT          40
 #define RUN_MIN_REF              140
 #define RUN_MIN_OUT               45
 
@@ -78,8 +78,7 @@ int main(void)
             static uint8_t s_cmd_raw_prev = 0;
             static uint8_t s_cmd_filt = 0;
             static uint8_t s_cmd_stable_cnt = 0;
-            static uint8_t s_wait_start_snapshot = 0;
-            static uint16_t s_start_snapshot_cnt = 0;
+            static uint16_t s_run200_cnt = 0;
 
             TIMFlag.Delay5ms = 0;
 
@@ -192,8 +191,6 @@ int main(void)
                 s_wait_stop_report = 0;
                 s_stop_stable_cnt = 0;
                 s_stop_delay_cnt = 0;
-                s_wait_start_snapshot = 1;
-                s_start_snapshot_cnt = 0;
             }
             else if ((cmd_active == 0U) && (s_prev_outen != 0U))
             {
@@ -201,14 +198,12 @@ int main(void)
                 s_stop_stable_cnt = 0;
                 s_stop_delay_cnt = 0;
                 s_stop_last_hall = HALL_ReadHallPorts();
-                s_wait_start_snapshot = 0;
-                s_start_snapshot_cnt = 0;
             }
 
-            if ((s_wait_start_snapshot != 0U) && (cmd_active != 0U))
+            if (cmd_active != 0U)
             {
-                s_start_snapshot_cnt++;
-                if (s_start_snapshot_cnt >= START_RUN_SNAPSHOT_CNT)
+                s_run200_cnt++;
+                if (s_run200_cnt >= RUN200_PERIOD_CNT)
                 {
                     char evt_buf[96];
                     snprintf(evt_buf, sizeof(evt_buf),
@@ -219,9 +214,12 @@ int main(void)
                              (int)RPValue.Act,
                              (int)Speed.qOut);
                     Board_USART_SendString(evt_buf);
-                    s_wait_start_snapshot = 0;
-                    s_start_snapshot_cnt = 0;
+                    s_run200_cnt = 0;
                 }
+            }
+            else
+            {
+                s_run200_cnt = 0;
             }
 
             if (s_wait_stop_report != 0)
