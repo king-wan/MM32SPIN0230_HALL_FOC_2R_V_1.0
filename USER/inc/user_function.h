@@ -8,6 +8,33 @@
 #define 	MAX_SPEED		4000
 #define 	MOTOR_DIR		-1	      	//1:CW, -1:CCW
 
+/*
+ * Motor reference used for the current tuning pass:
+ * maxon ECX SPEED 16 M, 24 V winding with Hall sensors.
+ *
+ * Datasheet key values:
+ * - nominal voltage: 24 V
+ * - no-load speed:   54 900 rpm
+ * - nominal speed:   50 300 rpm
+ * - nominal current: 2.11 A
+ * - terminal R/L:    0.841 ohm / 0.0534 mH
+ * - torque constant: 4.16 mNm/A
+ * - speed constant:  2300 rpm/V
+ *
+ * The application command range remains conservative for bench bring-up.
+ * Here we only use the motor data to lift the speed-loop current ceiling
+ * from the previous very small value to a safer, more realistic level.
+ */
+#define MOTOR_NOMINAL_VOLTAGE_V         24
+#define MOTOR_NOMINAL_SPEED_RPM         50300
+#define MOTOR_NOLOAD_SPEED_RPM          54900
+#define MOTOR_NOMINAL_CURRENT_A10       21
+#define MOTOR_TERMINAL_RESISTANCE_MOHM  841
+#define MOTOR_TERMINAL_INDUCTANCE_UH    53
+#define MOTOR_SPEED_CONSTANT_RPM_PER_V  2300
+#define MOTOR_TORQUE_CONSTANT_MNM_PER_A 416
+#define SPEED_LOOP_MAX_CURRENT_A10      12
+
 //--------------------- Current measurement -------------------------------------------------------------------
 #define 	ISUM_R_VALUE    		50 	//unit:milli ohm, 50 means 0.05 ohm
 #define 	ISUM_AMP_FACTOR  		50 	//unit:0.1 amplification factor, 50 means 50*0.1 = 5 amplification factor
@@ -15,20 +42,21 @@
 #define 	ISHUNT_AMP_FACTOR		50 	//unit:0.1 amplification factor, 50 means 50*0.1 = 5 amplification factor
 #define 	ISUM_GAIN 		((ISUM_R_VALUE*ISUM_AMP_FACTOR*32768)/50000) 		//50*5*32768/5000 = 1638---1A
 #define 	ISHUNT_GAIN 	((ISHUNT_R_VALUE*ISHUNT_AMP_FACTOR*32768)/50000) 	//50*5*32768/5000 = 1638---1A
+#define     SPEED_LOOP_MAX_CURRENT_Q15  ((ISHUNT_GAIN * SPEED_LOOP_MAX_CURRENT_A10) / 10)
 
 //--------------------- DC Bus voltage measurement --------------------------------------------------------------
 #define 	VBUS_PULL_UP_R     1000 	//unit : 0.1K Ohm, 1000 means 100K Ohm //20181215
 #define 	VBUS_PULL_DOWN_R   100  	//unit : 0.1K Ohm, 100  means 10K  Ohm //20181215
 
-#define 	VBUS_HIGH_VALUE1	3600  		//π˝—π∑ß÷µ		36V
-#define 	VBUS_HIGH_VALUE2	3500  		//π˝—πª÷∏¥		35V
-#define 	VBUS_LOW_VALUE1		1600   	 	//«∑—π∑ß÷µ		20V
-#define 	VBUS_LOW_VALUE2		1700   	  	//«∑—πª÷∏¥		21V
-#define 	IBUS_OVER_VALUE		200   		//»Ìº˛π˝¡˜÷µ		2A
-#define 	IBUS_LIMIT_VALUE	120			//»Ìº˛œﬁ¡˜		1A
+#define 	VBUS_HIGH_VALUE1	3600  		//ËøáÂéãÈòÄÂÄº		36V
+#define 	VBUS_HIGH_VALUE2	3500  		//ËøáÂéãÊÅ¢Â§ç		35V
+#define 	VBUS_LOW_VALUE1		1600   	 	//Ê¨†ÂéãÈòÄÂÄº		20V
+#define 	VBUS_LOW_VALUE2		1700   	  	//Ê¨†ÂéãÊÅ¢Â§ç		21V
+#define 	IBUS_OVER_VALUE		200   		//ËΩØ‰ª∂ËøáÊµÅÂÄº		2A
+#define 	IBUS_LIMIT_VALUE	120			//ËΩØ‰ª∂ÈôêÊµÅ		1A
 #define 	LACK_PHASE_DETECT_CYCLE		1000
 
-//µÁª˙◊¥Ã¨±Ì
+//ÁîµÊú∫Áä∂ÊÄÅË°®
 #define 	IDLESTATE      	0
 #define		RUNSTATE  		1
 #define 	BRAKESTATE     	2

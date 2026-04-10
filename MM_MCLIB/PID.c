@@ -85,9 +85,9 @@ void InitPI(void)
     PI_Configure(&CurIQ, 9000, 200, -30000, 30000);
 
 #if POSITION_LOOP_ENABLE
-    PI_Configure(&Speed, 5800, 65, -(IshuntGain * 5), IshuntGain * 5);
+    PI_Configure(&Speed, 5800, 65, -SPEED_LOOP_MAX_CURRENT_Q15, SPEED_LOOP_MAX_CURRENT_Q15);
 #else
-    PI_Configure(&Speed, 5800, 65, 0, IshuntGain * 5);
+    PI_Configure(&Speed, 5800, 65, 0, SPEED_LOOP_MAX_CURRENT_Q15);
 #endif
 
     PI_Configure(&PLL, 2000, 10, -500, 500);
