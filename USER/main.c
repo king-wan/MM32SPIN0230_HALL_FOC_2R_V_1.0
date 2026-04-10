@@ -20,8 +20,6 @@
 
 int16_t M1FaultID, M1FaultID_Record;
 
-#define SPEED_START_THRESHOLD    120
-#define SPEED_STOP_THRESHOLD      80
 #define HALL_DEBUG_PRINT          HALL_DEBUG_ENABLE
 #define HALL_EDGE_PRINT_ONLY      HALL_DEBUG_EDGE_ONLY
 #define HALL_START_STOP_PRINT     HALL_DEBUG_START_STOP
@@ -30,10 +28,7 @@ int16_t M1FaultID, M1FaultID_Record;
 #define STOP_REPORT_DELAY_CNT     120
 #define STOP_REPORT_TIMEOUT_CNT   400
 #define CMD_EVENT_DEBOUNCE_CNT     6
-#define ZERO_REF_CLAMP_TH         40
 #define RUN200_PERIOD_CNT          40
-#define RUN_MIN_REF              RUN_MIN_REF_RPM
-#define RUN_MIN_OUT              RUN_MIN_OUT_Q15
 
 extern tPIParm Position;
 extern uint8_t PositionHoldEnable;
@@ -384,10 +379,10 @@ int main(void)
                 RPValue.Act = -POSITION_SPEED_MIN_RPM;
             }
 #else
-            else if (RPValue.Act < RUN_MIN_REF)
+            else if (RPValue.Act < RUN_MIN_REF_RPM)
             {
                 /* Avoid weak-command stall right after start. */
-                RPValue.Act = RUN_MIN_REF;
+                RPValue.Act = RUN_MIN_REF_RPM;
             }
 #endif
             else if ((RPValue.Dest == 0) && (Abs16((int16_t)RPValue.Act) <= ZERO_REF_CLAMP_TH))
@@ -402,9 +397,9 @@ int main(void)
             Speed.qInMeas = SpeedFdk.Out;
             CalcPI(&Speed);
 #if !POSITION_LOOP_ENABLE
-            if ((s_speed_enable != 0U) && (Speed.qOut < RUN_MIN_OUT))
+            if ((s_speed_enable != 0U) && (Speed.qOut < RUN_MIN_OUT_Q15))
             {
-                Speed.qOut = RUN_MIN_OUT;
+                Speed.qOut = RUN_MIN_OUT_Q15;
             }
             if (Speed.qOut < 0)
             {
@@ -426,17 +421,19 @@ int main(void)
             }
 #endif
 
-            if (SpeedFdk.Out <= 500)
+            if (SpeedFdk.Out <= FIELD_WEAKEN_START_RPM)
             {
                 IdRef = 0;
             }
-            else if (SpeedFdk.Out >= 800)
+            else if (SpeedFdk.Out >= FIELD_WEAKEN_FULL_RPM)
             {
-                IdRef = -350;
+                IdRef = -FIELD_WEAKEN_MAX_ID_Q15;
             }
             else
             {
-                IdRef = -((int32_t)(SpeedFdk.Out - 500) * 350 / 300);
+                IdRef = -((int32_t)(SpeedFdk.Out - FIELD_WEAKEN_START_RPM) *
+                          FIELD_WEAKEN_MAX_ID_Q15 /
+                          (FIELD_WEAKEN_FULL_RPM - FIELD_WEAKEN_START_RPM));
             }
 
             Diagnose_VBUS_ADC(ADC_Structure.VBusInput);

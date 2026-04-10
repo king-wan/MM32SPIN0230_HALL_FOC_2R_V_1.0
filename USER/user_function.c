@@ -49,7 +49,7 @@ void Init_Parameter(void)
 	SpeedGain = 6000000/POLEPAIRS;								//RPM
 	
 	InitPI();
-	InitNormalization(450,3950,MOTOR_COMMAND_MAX_RPM10,&RP);
+	InitNormalization(POSITION_POT_MIN_ADC, POSITION_POT_MAX_ADC, MOTOR_COMMAND_MAX_RPM10, &RP);
 	LoopCmp_Init();
 	HALLModuleInit(&HALL1);
 	PWM_GEN_init(&pwm_gen);

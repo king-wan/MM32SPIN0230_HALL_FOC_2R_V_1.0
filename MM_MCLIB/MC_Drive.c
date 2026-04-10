@@ -17,7 +17,7 @@ uint8_t MotorState = IDLESTATE;
 uint16_t Time5msCnt = 0;
 uint16_t Time200msCnt = 0;
 int16_t ElecAngle = 0;
-int16_t IdRef = -1000;
+int16_t IdRef = IDREF_INIT_Q15;
 int16_t IqRef = 0;
 int16_t AngleTest = 0;
 Trig_Components Vector_Components;
@@ -31,36 +31,6 @@ int32_t s32IvFiltQ3 = 0;
 uint8_t PositionHoldEnable = 0;
 int16_t PositionHoldTargetAngle = 0;
 int16_t PositionHoldIq = 0;
-
-/* Fixed-angle start/stop position hold */
-#define POS_HOLD_ENTRY_SPD          40
-#define POS_HOLD_IQ_STOP            220
-#define POS_HOLD_IQ_START           START_ALIGN_IQ_Q15
-#define POS_HOLD_ANGLE_DEAD         900
-#define START_ALIGN_PWM_CYCLES      1200
-#define START_LOCK_PWM_CYCLES       900
-#define START_KICK_IQ               START_KICK_IQ_Q15
-#define START_KICK_ADV_ANGLE        START_KICK_ADV_ANGLE_Q15
-#define START_OL_IQ                 START_OL_IQ_Q15
-#define START_OL_STEP_INIT          START_OL_STEP_INIT_Q15
-#define START_OL_STEP_MAX           START_OL_STEP_MAX_Q15
-#define START_OL_EXIT_SPD           START_OL_EXIT_SPD_RPM
-#define START_OL_MAX_CYCLES         START_OL_MAX_CYCLES_CFG
-#define POS_HOLD_IQ_BRAKE           0
-#define HOLD_TARGET_HALL            1
-#define HOLD_HALL_STABLE_CNT        8
-#define HOLD_TARGET_BIAS            900
-#define MOTOR_CMD_ACTIVE_TH         40
-#define STOP_PWM_OFF_SPD            20
-#define STOP_BRAKE_ENTRY_SPD        220
-#define STOP_BRAKE_EXIT_SPD         80
-#define STOP_BRAKE_IQ               180
-#define STOP_BRAKE_MAX_CYCLES       700
-#define STOP_PARK_ENABLE            1
-#define STOP_PARK_DELAY_CYCLES      180
-#define STOP_PARK_IQ                70
-#define STOP_PARK_ANGLE_DEAD        700
-#define STOP_PARK_ERR_HYST          120
 
 static uint8_t s_pos_hold_active = 0;
 static uint16_t s_start_align_cnt = 0;

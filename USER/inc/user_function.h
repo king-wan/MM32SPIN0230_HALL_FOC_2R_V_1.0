@@ -3,43 +3,33 @@
 
 #include "mm32_device.h"
 #include "hal_conf.h"
-
-#define		POLEPAIRS		1
-#define 	MAX_SPEED		4000
-#define 	MOTOR_DIR		-1	      	//1:CW, -1:CCW
+#include "motor_profile.h"
 
 /*
- * Motor reference used for the current tuning pass:
- * maxon ECX SPEED 16 M, 24 V winding with Hall sensors.
+ * Board-level parameters
+ * ----------------------
+ * motor_profile.h stores motor-specific parameters.
+ * This file stores controller-board-specific analog front-end and protection
+ * parameters, which normally change only when the PCB hardware changes.
  *
- * Datasheet key values:
- * - nominal voltage: 24 V
- * - no-load speed:   54 900 rpm
- * - nominal speed:   50 300 rpm
- * - nominal current: 2.11 A
- * - terminal R/L:    0.841 ohm / 0.0534 mH
- * - torque constant: 4.16 mNm/A
- * - speed constant:  2300 rpm/V
- *
- * The application command range remains conservative for bench bring-up.
- * Here we only use the motor data to lift the speed-loop current ceiling
- * from the previous very small value to a safer, more realistic level.
+ * File role:
+ * - Edit this file when the controller board hardware changes.
+ * - Typical reasons: shunt resistor changed, op-amp gain changed, bus divider
+ *   changed, or protection thresholds must match a new power stage.
+ * - For motor replacement only, this file is usually left unchanged.
  */
-#define MOTOR_NOMINAL_VOLTAGE_V         24
-#define MOTOR_NOMINAL_SPEED_RPM         50300
-#define MOTOR_NOLOAD_SPEED_RPM          54900
-#define MOTOR_NOMINAL_CURRENT_A10       21
-#define MOTOR_TERMINAL_RESISTANCE_MOHM  841
-#define MOTOR_TERMINAL_INDUCTANCE_UH    53
-#define MOTOR_SPEED_CONSTANT_RPM_PER_V  2300
-#define MOTOR_TORQUE_CONSTANT_MNM_PER_A 416
-#define MOTOR_COMMAND_MAX_RPM10         3200
-#define MOTOR_RAMP_INC_RPM10            4
-#define MOTOR_RAMP_DEC_RPM10            8
-#define SPEED_LOOP_MAX_CURRENT_A10      12
-#define RUN_MIN_REF_RPM                 240
-#define RUN_MIN_CURRENT_A10             2
 
+/*
+ * Current measurement parameters
+ * ISUM_R_VALUE: bus-current shunt resistor value, unit mOhm.
+ * ISUM_AMP_FACTOR: bus-current amplifier gain, unit 0.1x.
+ * ISHUNT_R_VALUE: phase-current shunt resistor value, unit mOhm.
+ * ISHUNT_AMP_FACTOR: phase-current amplifier gain, unit 0.1x.
+ * ISUM_GAIN: bus-current conversion gain in q15 domain, approximately counts per 1 A.
+ * ISHUNT_GAIN: phase-current conversion gain in q15 domain, approximately counts per 1 A.
+ * SPEED_LOOP_MAX_CURRENT_Q15: speed-loop current ceiling converted from motor current units to q15.
+ * RUN_MIN_OUT_Q15: minimum running torque/current converted from motor current units to q15.
+ */
 //--------------------- Current measurement -------------------------------------------------------------------
 #define 	ISUM_R_VALUE    		50 	//unit:milli ohm, 50 means 0.05 ohm
 #define 	ISUM_AMP_FACTOR  		50 	//unit:0.1 amplification factor, 50 means 50*0.1 = 5 amplification factor
@@ -50,6 +40,18 @@
 #define     SPEED_LOOP_MAX_CURRENT_Q15  ((ISHUNT_GAIN * SPEED_LOOP_MAX_CURRENT_A10) / 10)
 #define     RUN_MIN_OUT_Q15             ((ISHUNT_GAIN * RUN_MIN_CURRENT_A10) / 10)
 
+/*
+ * DC bus and protection parameters
+ * VBUS_PULL_UP_R: upper resistor of the DC-bus divider, unit 0.1 kOhm.
+ * VBUS_PULL_DOWN_R: lower resistor of the DC-bus divider, unit 0.1 kOhm.
+ * VBUS_HIGH_VALUE1: over-voltage trip threshold, unit 0.01 V.
+ * VBUS_HIGH_VALUE2: over-voltage release threshold, unit 0.01 V.
+ * VBUS_LOW_VALUE1: under-voltage trip threshold, unit 0.01 V.
+ * VBUS_LOW_VALUE2: under-voltage release threshold, unit 0.01 V.
+ * IBUS_OVER_VALUE: software over-current protection threshold, unit 0.01 A.
+ * IBUS_LIMIT_VALUE: software current-limit threshold, unit 0.01 A.
+ * LACK_PHASE_DETECT_CYCLE: observation window used for missing-phase diagnosis.
+ */
 //--------------------- DC Bus voltage measurement --------------------------------------------------------------
 #define 	VBUS_PULL_UP_R     1000 	//unit : 0.1K Ohm, 1000 means 100K Ohm //20181215
 #define 	VBUS_PULL_DOWN_R   100  	//unit : 0.1K Ohm, 100  means 10K  Ohm //20181215
@@ -68,6 +70,20 @@
 #define 	BRAKESTATE     	2
 #define 	ERRORSTATE     	3
 
+/*
+ * Motor state definitions
+ * IDLESTATE: idle / PWM disabled.
+ * RUNSTATE: normal closed-loop running.
+ * BRAKESTATE: active braking state.
+ * ERRORSTATE: latched fault state.
+ *
+ * ADC_components fields
+ * SPEED: potentiometer/speed command ADC raw sample.
+ * VBusInput/VBusAvrg: raw and filtered bus voltage.
+ * IBusInput/IBusAvrg: raw and filtered bus current.
+ * IU/IV: phase current feedback used by FOC.
+ * EU/EV/EW: phase voltage or back-EMF related samples.
+ */
 typedef struct
 { 
 	u16 SPEED;
