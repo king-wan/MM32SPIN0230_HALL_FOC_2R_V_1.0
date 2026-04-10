@@ -2,12 +2,14 @@
 #include "PID.h"
 #include "MC_Drive.h"
 #include "user_function.h"
+#include "hall_tune.h"
 
 /*------------------- Private variables ---------------*/
 tPIParm CurID;
 tPIParm CurIQ;
 tPIParm Speed;
 tPIParm PLL;
+tPIParm Position;
 
 /****************************************************************
     Function: InitPI
@@ -33,7 +35,11 @@ void InitPI(void)
     Speed.qKp = 5800;
     Speed.qKi = 65;
     Speed.qOutMax = IshuntGain * 5;
+#if POSITION_LOOP_ENABLE
+    Speed.qOutMin = -(IshuntGain * 5);
+#else
     Speed.qOutMin = 0;
+#endif
     Speed.qdSum = 0;
     Speed.qInMeas = 0;
     Speed.qOut = 0;
@@ -46,6 +52,15 @@ void InitPI(void)
     PLL.qInRef = 0;
     PLL.qInMeas = 0;
     PLL.qOut = 0;
+
+    Position.qKp = POSITION_KP_Q15;
+    Position.qKi = POSITION_KI_Q15;
+    Position.qOutMax = POSITION_SPEED_MAX_RPM;
+    Position.qOutMin = -POSITION_SPEED_MAX_RPM;
+    Position.qdSum = 0;
+    Position.qInRef = 0;
+    Position.qInMeas = 0;
+    Position.qOut = 0;
 }
 
 /****************************************************************

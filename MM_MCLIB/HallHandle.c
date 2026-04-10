@@ -3,6 +3,8 @@
 #include "HallHandle.h"
 #include "MC_Drive.h"
 #include "user_function.h"
+#include "parameter.h"
+#include "hall_tune.h"
 #include "FOC_Math.h"
 #include "PID.h"
 #include "Diagnose.h"
@@ -12,6 +14,7 @@ HALLType HALL1;
 SectorType SectorStudy;
 int16_t CWShift = 0;
 int16_t CCWShift = -1200;
+int16_t HallAngleOffset = HALL_EANGLE_OFFSET_Q15;
 uint8_t ReadHallValue;
 
 volatile uint8_t g_hall_edge_head = 0;
@@ -20,7 +23,15 @@ volatile uint8_t g_hall_edge_count = 0;
 volatile uint8_t g_hall_edge_old_buf[32] = {0};
 volatile uint8_t g_hall_edge_new_buf[32] = {0};
 
-#define HALL_NO_EDGE_TIMEOUT_CNT  2500U
+#define HALL_Q15_15DEG               2730
+#define HALL_Q15_30DEG               5460
+#define HALL_Q15_60DEG               10922
+#define HALL_SECTOR_NUM              6U
+#define HALL_TIMEOUT_PWM_CYCLES      2500U
+#define HALL_MIN_VALID_PERIOD_US     20U
+#define HALL_HALF_SECTOR_SPD_TH      500
+#define HALL_FULL_SECTOR_SPD_TH      800
+#define HALL_PERIOD_STALE_FACTOR     2U
 
 /*------------------ Private functions ----------------*/
 void HALLModuleInit(HALLType *u);
@@ -28,22 +39,220 @@ void HALLModuleCalc(HALLType *u);
 uint8_t HALL_ReadHallPorts(void);
 void HALLCheck(HALLType *u);
 
+static int16_t Hall_WrapAngle(int32_t angle)
+{
+    while (angle > 32767)
+    {
+        angle -= 65536;
+    }
+    while (angle < -32768)
+    {
+        angle += 65536;
+    }
+    return (int16_t)angle;
+}
+
+static uint8_t Hall_IsValidValue(uint8_t hall)
+{
+    return (uint8_t)((hall != 0U) && (hall != 7U));
+}
+
+static uint8_t Hall_GetNextState(uint8_t hall)
+{
+    switch (hall)
+    {
+    case 1: return 3;
+    case 3: return 2;
+    case 2: return 6;
+    case 6: return 4;
+    case 4: return 5;
+    case 5: return 1;
+    default: return 0;
+    }
+}
+
+static uint8_t Hall_GetPrevState(uint8_t hall)
+{
+    switch (hall)
+    {
+    case 1: return 5;
+    case 3: return 1;
+    case 2: return 3;
+    case 6: return 2;
+    case 4: return 6;
+    case 5: return 4;
+    default: return 0;
+    }
+}
+
+static int8_t Hall_GetEdgeDirection(uint8_t old_hall, uint8_t new_hall)
+{
+    if (new_hall == Hall_GetNextState(old_hall))
+    {
+        return 1;
+    }
+    if (new_hall == Hall_GetPrevState(old_hall))
+    {
+        return -1;
+    }
+    return 0;
+}
+
+static int16_t Hall_GetCenterAngle(const HALLType *u, uint8_t hall)
+{
+    int32_t angle;
+
+    if (u->CMDDIR < 0)
+    {
+        angle = (int32_t)u->CCWAngleTab[hall] + (int32_t)HALL_Q15_30DEG + (int32_t)CCWShift + (int32_t)HallAngleOffset;
+    }
+    else
+    {
+        angle = (int32_t)u->CWAngleTab[hall] + (int32_t)HALL_Q15_30DEG + (int32_t)CWShift + (int32_t)HallAngleOffset;
+    }
+
+    return Hall_WrapAngle(angle);
+}
+
+static void Hall_UpdateAngleWindow(HALLType *u, int16_t center, uint8_t use_half_sector)
+{
+    int16_t half_width = use_half_sector ? HALL_Q15_15DEG : HALL_Q15_30DEG;
+
+    u->AngleCenter = center;
+    u->AngleLowLimit = Hall_WrapAngle((int32_t)center - half_width);
+    u->AngleHighLimit = Hall_WrapAngle((int32_t)center + half_width);
+    u->UseHalfSector = use_half_sector;
+}
+
+static uint8_t Hall_IsAngleWithinWindow(const HALLType *u, int16_t angle)
+{
+    if (u->AngleLowLimit <= u->AngleHighLimit)
+    {
+        return (uint8_t)((angle >= u->AngleLowLimit) && (angle <= u->AngleHighLimit));
+    }
+    return (uint8_t)((angle >= u->AngleLowLimit) || (angle <= u->AngleHighLimit));
+}
+
+static int16_t Hall_ClampAngleToWindow(const HALLType *u, int16_t angle, int32_t dpp)
+{
+    if (Hall_IsAngleWithinWindow(u, angle) != 0U)
+    {
+        return angle;
+    }
+
+    if (dpp >= 0)
+    {
+        return u->AngleHighLimit;
+    }
+    return u->AngleLowLimit;
+}
+
+static void Hall_UpdateSpeedFromPeriod(HALLType *u)
+{
+    uint8_t idx;
+    uint32_t hall_sum = 0;
+
+    for (idx = 0; idx < HALL_SECTOR_NUM; idx++)
+    {
+        hall_sum += u->HallTime[idx];
+    }
+
+    if (hall_sum == 0U)
+    {
+        hall_sum = 1U;
+    }
+
+    u->HallTimeSum = hall_sum;
+    u->SpeedTemp = (int16_t)Division(SpeedGain, (int32_t)hall_sum);
+    u->PredictedDpp = (int16_t)Division(4096000, (int32_t)hall_sum);
+    u->IncAngle = u->PredictedDpp;
+    u->IncAngleMax = HALL_Q15_60DEG;
+
+    if (u->PredictedDpp < 0)
+    {
+        u->PredictedDpp = (int16_t)(-u->PredictedDpp);
+        u->IncAngle = (int16_t)(-u->PredictedDpp);
+    }
+
+    if (u->PredictedDpp == 0)
+    {
+        u->EdgeCycleTarget = HALL_TIMEOUT_PWM_CYCLES;
+    }
+    else
+    {
+        uint32_t sector_cycles = ((hall_sum / HALL_SECTOR_NUM) * PWMFREQ + 500000U) / 1000000U;
+        if (sector_cycles == 0U)
+        {
+            sector_cycles = 1U;
+        }
+        u->EdgeCycleTarget = (uint16_t)sector_cycles;
+    }
+}
+
+static void Hall_HandleTransition(HALLType *u, uint8_t new_hall)
+{
+    uint32_t period_us;
+    int8_t edge_dir;
+    uint8_t use_half_sector;
+    int16_t synced_angle;
+    uint8_t next_slot;
+    uint32_t stale_limit;
+
+    if (g_hall_edge_count >= 32U)
+    {
+        g_hall_edge_tail = (uint8_t)((g_hall_edge_tail + 1U) & 0x1FU);
+        g_hall_edge_count = 31U;
+    }
+    g_hall_edge_old_buf[g_hall_edge_head] = u->PreHallValue;
+    g_hall_edge_new_buf[g_hall_edge_head] = new_hall;
+    g_hall_edge_head = (uint8_t)((g_hall_edge_head + 1U) & 0x1FU);
+    g_hall_edge_count++;
+
+    edge_dir = Hall_GetEdgeDirection(u->PreHallValue, new_hall);
+    u->EdgeDir = edge_dir;
+    u->RunHallValue = new_hall;
+    u->NoEdgeCnt = 0;
+    u->EdgeCycleCnt = 0;
+
+    period_us = TIM2->CCR1;
+    if (period_us < HALL_MIN_VALID_PERIOD_US)
+    {
+        period_us = HALL_MIN_VALID_PERIOD_US;
+    }
+
+    stale_limit = (u->HallTimeSum == 0U) ? (uint32_t)HALL_TIMEOUT_PWM_CYCLES : (u->HallTimeSum / HALL_SECTOR_NUM) * HALL_PERIOD_STALE_FACTOR;
+    if ((u->HallTimeSum != 0U) && (period_us > stale_limit) && (stale_limit > 0U))
+    {
+        period_us = stale_limit;
+    }
+
+    next_slot = (uint8_t)((u->PeriodIndex + 1U) % HALL_SECTOR_NUM);
+    u->PeriodIndex = next_slot;
+    u->HallTime[next_slot] = period_us;
+
+    Hall_UpdateSpeedFromPeriod(u);
+
+    use_half_sector = (uint8_t)((u->SpeedTemp < HALL_HALF_SECTOR_SPD_TH) || (edge_dir == 0));
+    if (u->SpeedTemp >= HALL_FULL_SECTOR_SPD_TH)
+    {
+        use_half_sector = 0U;
+    }
+
+    synced_angle = Hall_GetCenterAngle(u, new_hall);
+    Hall_UpdateAngleWindow(u, synced_angle, use_half_sector);
+    u->Angle = synced_angle;
+    u->HallState = (edge_dir == 0) ? 0U : 1U;
+}
+
 /****************************************************************
     Function: HALLModuleInit
 ****************************************************************/
 void HALLModuleInit(HALLType *u)
 {
     uint8_t i;
+    uint8_t hall_now;
 
-    u->RunHallValue = HALL_ReadHallPorts();
-    u->PreHallValue = u->RunHallValue;
     u->CMDDIR = MOTOR_DIR;
-    u->IncAngle = 5;
-    u->IncAngleMax = 10922;
-    u->SpeedTemp = 0;
-    u->Time100msCNT = 0;
-    u->HallTimeSum = 60000;
-
     u->CWAngleTab[1] = -21844;
     u->CWAngleTab[3] = -10922;
     u->CWAngleTab[2] = 0;
@@ -58,19 +267,38 @@ void HALLModuleInit(HALLType *u)
     u->CCWAngleTab[3] = 21844;
     u->CCWAngleTab[1] = 32767;
 
-    if (u->CMDDIR == -1)
+    hall_now = HALL_ReadHallPorts();
+    if (Hall_IsValidValue(hall_now) == 0U)
     {
-        u->Angle = u->CCWAngleTab[HALL1.RunHallValue] + 5460;
+        hall_now = 1U;
+        u->HallState = 0U;
     }
     else
     {
-        u->Angle = u->CWAngleTab[HALL1.RunHallValue] + 5460;
+        u->HallState = 1U;
     }
 
-    for (i = 0; i < 8; i++)
+    u->RunHallValue = hall_now;
+    u->PreHallValue = hall_now;
+    u->EdgeDir = 0;
+    u->SpeedTemp = 0;
+    u->PredictedDpp = 0;
+    u->IncAngle = 0;
+    u->IncAngleMax = HALL_Q15_60DEG;
+    u->Time100msCNT = 0;
+    u->PeriodIndex = 0;
+    u->NoEdgeCnt = 0;
+    u->EdgeCycleCnt = 0;
+    u->EdgeCycleTarget = HALL_TIMEOUT_PWM_CYCLES;
+    u->HallTimeSum = 60000U;
+
+    for (i = 0; i < 8U; i++)
     {
-        u->HallTime[i] = 10000;
+        u->HallTime[i] = 10000U;
     }
+
+    u->Angle = Hall_GetCenterAngle(u, hall_now);
+    Hall_UpdateAngleWindow(u, u->Angle, 1U);
 
     g_hall_edge_head = 0;
     g_hall_edge_tail = 0;
@@ -82,79 +310,54 @@ void HALLModuleInit(HALLType *u)
 ****************************************************************/
 void HALLModuleCalc(HALLType *u)
 {
-    static uint8_t i = 0;
-    static uint16_t s_no_edge_cnt = 0;
-    uint8_t j = 0;
+    int32_t predicted_dpp;
+    uint8_t hall_now;
 
-    u->RunHallValue = HALL_ReadHallPorts();
+    hall_now = HALL_ReadHallPorts();
+    ReadHallValue = hall_now;
+    u->RunHallValue = hall_now;
 
-    if (u->PreHallValue != u->RunHallValue)
+    if ((Hall_IsValidValue(hall_now) != 0U) && (u->PreHallValue != hall_now))
     {
-        if (g_hall_edge_count >= 32)
-        {
-            g_hall_edge_tail = (uint8_t)((g_hall_edge_tail + 1) & 0x1F);
-            g_hall_edge_count = 31;
-        }
-        g_hall_edge_old_buf[g_hall_edge_head] = u->PreHallValue;
-        g_hall_edge_new_buf[g_hall_edge_head] = u->RunHallValue;
-        g_hall_edge_head = (uint8_t)((g_hall_edge_head + 1) & 0x1F);
-        g_hall_edge_count++;
-
-        s_no_edge_cnt = 0;
-        u->Time100msCNT = 0;
-
-        i++;
-        if (i >= 6)
-        {
-            i = 0;
-        }
-
-        u->HallTime[i] = TIM2->CCR1;
-
-        u->HallTimeSum = 0;
-        for (j = 0; j < 6; j++)
-        {
-            u->HallTimeSum += u->HallTime[j];
-        }
-
-        if (u->HallTimeSum == 0)
-        {
-            u->HallTimeSum = 1;
-        }
-
-        u->SpeedTemp = Division(SpeedGain, u->HallTimeSum);
-
-        u->IncAngle = Division(4096000, u->HallTimeSum);
-        u->IncAngleMax = 10922;
-
-        if (u->CMDDIR == -1)
-        {
-            u->Angle = u->CCWAngleTab[u->RunHallValue] + CCWShift;
-        }
-        else
-        {
-            u->Angle = u->CWAngleTab[u->RunHallValue] + CWShift;
-        }
-    }
-    else
-    {
-        if (s_no_edge_cnt < 0xFFFFU) { s_no_edge_cnt++; }
-        if (s_no_edge_cnt >= HALL_NO_EDGE_TIMEOUT_CNT)
-        {
-            /* No Hall edge for a while: treat as zero speed to avoid stale high-speed feedback. */
-            u->SpeedTemp = 0;
-            u->IncAngle = 0;
-            u->IncAngleMax = 0;
-        }
+        Hall_HandleTransition(u, hall_now);
+        u->PreHallValue = hall_now;
+        return;
     }
 
-    u->PreHallValue = u->RunHallValue;
-
-    if ((u->IncAngleMax - u->IncAngle) >= 0)
+    if (u->NoEdgeCnt < 0xFFFFU)
     {
-        u->IncAngleMax = u->IncAngleMax - u->IncAngle;
-        u->Angle = u->Angle + u->CMDDIR * HALL1.IncAngle;
+        u->NoEdgeCnt++;
     }
+    if (u->EdgeCycleCnt < 0xFFFFU)
+    {
+        u->EdgeCycleCnt++;
+    }
+
+    if (u->NoEdgeCnt >= HALL_TIMEOUT_PWM_CYCLES)
+    {
+        u->SpeedTemp = 0;
+        u->PredictedDpp = 0;
+        u->IncAngle = 0;
+        u->IncAngleMax = 0;
+        u->HallState = 0U;
+        u->Angle = Hall_GetCenterAngle(u, u->PreHallValue);
+        Hall_UpdateAngleWindow(u, u->Angle, 1U);
+        return;
+    }
+
+    predicted_dpp = u->PredictedDpp;
+    if ((u->EdgeCycleTarget != 0U) && (u->EdgeCycleCnt > u->EdgeCycleTarget))
+    {
+        predicted_dpp = Division(HALL_Q15_60DEG, (int32_t)u->EdgeCycleCnt);
+    }
+
+    if (u->CMDDIR < 0)
+    {
+        predicted_dpp = -predicted_dpp;
+    }
+
+    u->IncAngle = (int16_t)predicted_dpp;
+    u->Angle = Hall_ClampAngleToWindow(u, Hall_WrapAngle((int32_t)u->Angle + predicted_dpp), predicted_dpp);
 }
 
 /****************************************************************
@@ -170,7 +373,7 @@ uint8_t HALL_ReadHallPorts(void)
     HallA = GPIO_ReadInputDataBit(HALL_U_PORT, HALL_U_PIN);
     HallB = GPIO_ReadInputDataBit(HALL_V_PORT, HALL_V_PIN);
     HallC = GPIO_ReadInputDataBit(HALL_W_PORT, HALL_W_PIN);
-    HallValue = (uint8_t)(HallA * 1 + HallB * 2 + HallC * 4);
+    HallValue = (uint8_t)(HallA * 1U + HallB * 2U + HallC * 4U);
 
     return HallValue;
 }
@@ -180,7 +383,7 @@ uint8_t HALL_ReadHallPorts(void)
 ****************************************************************/
 void HALLCheck(HALLType *u)
 {
-    if ((u->RunHallValue == 0) || (u->RunHallValue == 7))
+    if (Hall_IsValidValue(u->RunHallValue) == 0U)
     {
         FAULT.bit.HallFlag = 1;
     }
