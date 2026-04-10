@@ -36,10 +36,10 @@ ADC_components ADC_Structure;
 /*------------------ Private functions ----------------*/
 
 /****************************************************************
-	函数名：Init_Parameter
-	描述：上电初始化变量						
-	输入：无
-	输出：无
+	鍑芥暟鍚嶏細Init_Parameter
+	鎻忚堪锛氫笂鐢靛垵濮嬪寲鍙橀噺						
+	杈撳叆锛氭棤
+	杈撳嚭锛氭棤
 ****************************************************************/
 void Init_Parameter(void)
 {
@@ -49,7 +49,7 @@ void Init_Parameter(void)
 	SpeedGain = 6000000/POLEPAIRS;								//RPM
 	
 	InitPI();
-	InitNormalization(450,3950,2200,&RP);
+	InitNormalization(450,3950,MOTOR_COMMAND_MAX_RPM10,&RP);
 	LoopCmp_Init();
 	HALLModuleInit(&HALL1);
 	PWM_GEN_init(&pwm_gen);

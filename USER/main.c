@@ -32,8 +32,8 @@ int16_t M1FaultID, M1FaultID_Record;
 #define CMD_EVENT_DEBOUNCE_CNT     6
 #define ZERO_REF_CLAMP_TH         40
 #define RUN200_PERIOD_CNT          40
-#define RUN_MIN_REF              140
-#define RUN_MIN_OUT               45
+#define RUN_MIN_REF              RUN_MIN_REF_RPM
+#define RUN_MIN_OUT              RUN_MIN_OUT_Q15
 
 extern tPIParm Position;
 extern uint8_t PositionHoldEnable;

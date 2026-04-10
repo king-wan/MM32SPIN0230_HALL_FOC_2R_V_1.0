@@ -33,7 +33,12 @@
 #define MOTOR_TERMINAL_INDUCTANCE_UH    53
 #define MOTOR_SPEED_CONSTANT_RPM_PER_V  2300
 #define MOTOR_TORQUE_CONSTANT_MNM_PER_A 416
+#define MOTOR_COMMAND_MAX_RPM10         3200
+#define MOTOR_RAMP_INC_RPM10            4
+#define MOTOR_RAMP_DEC_RPM10            8
 #define SPEED_LOOP_MAX_CURRENT_A10      12
+#define RUN_MIN_REF_RPM                 240
+#define RUN_MIN_CURRENT_A10             2
 
 //--------------------- Current measurement -------------------------------------------------------------------
 #define 	ISUM_R_VALUE    		50 	//unit:milli ohm, 50 means 0.05 ohm
@@ -43,6 +48,7 @@
 #define 	ISUM_GAIN 		((ISUM_R_VALUE*ISUM_AMP_FACTOR*32768)/50000) 		//50*5*32768/5000 = 1638---1A
 #define 	ISHUNT_GAIN 	((ISHUNT_R_VALUE*ISHUNT_AMP_FACTOR*32768)/50000) 	//50*5*32768/5000 = 1638---1A
 #define     SPEED_LOOP_MAX_CURRENT_Q15  ((ISHUNT_GAIN * SPEED_LOOP_MAX_CURRENT_A10) / 10)
+#define     RUN_MIN_OUT_Q15             ((ISHUNT_GAIN * RUN_MIN_CURRENT_A10) / 10)
 
 //--------------------- DC Bus voltage measurement --------------------------------------------------------------
 #define 	VBUS_PULL_UP_R     1000 	//unit : 0.1K Ohm, 1000 means 100K Ohm //20181215
