@@ -34,16 +34,16 @@
 #define ADC1_INTERRUPT              (0)
 
 /** ADC interface */
-#define IR_U_RANK                   (0)
 #define IR_U_CHANNEL                ADC_Channel_5 
+#define IR_U_INJECT_RANK            ADC_InjectedChannel_0
 
-#define IR_V_RANK                   (1)
 #define IR_V_CHANNEL                ADC_Channel_4 
+#define IR_V_INJECT_RANK            ADC_InjectedChannel_1
 
-#define VBUS_RANK                   (2) 
+#define VBUS_RANK                   (0) 
 #define VBUS_CHANNEL                ADC_Channel_1
 
-#define VR_RANK                     (3)
+#define VR_RANK                     (1)
 #define VR_CHANNEL                  ADC_Channel_0  
 
 

@@ -51,9 +51,10 @@ void Interrupt_Init(void)
     /** Initialization ADC interrupt */
     NVIC_Configure(ADC_IRQn, ADC1_INTERRUPT);
 	
-    /** ADC EOF interrupt enabled */
-    ADC_ITConfig(ADC1, ADC_IT_EOS, ENABLE);
-    ADC_ClearITPendingBit(ADC1, ADC_IT_EOS);
+    /** ADC injected end-of-sequence interrupt enabled */
+    ADC_ITConfig(ADC1, ADC_IT_EOS, DISABLE);
+    ADC_ITConfig(ADC1, ADC_IT_INJEOS, ENABLE);
+    ADC_ClearITPendingBit(ADC1, ADC_IT_INJEOS);
 	
     /** Initialization TIM interrupt */
     NVIC_Configure(TIM1_BRK_UP_TRG_COM_IRQn, TIM1_UPDATE_INTERRUPT);
@@ -119,9 +120,9 @@ void DMA1_Channel4_5_IRQHandler(void) {}
 
 void ADC_IRQHandler(void) 
 {
-	if(READ_ADC_EOC_FLAG())
+	if(READ_ADC_JEOS_FLAG())
     {
-		CLEAN_ADC_EOC_FLAG();
+		CLEAN_ADC_JEOS_FLAG();
 		
 		LED1_TOGGLE();
 		

@@ -11,9 +11,12 @@ typedef struct
     int8_t  CMDDIR;
     int8_t  EdgeDir;
     int16_t Angle;
+    int16_t FocAngle;
+    int16_t AngleAdvance;
     int16_t IncAngle;
     int16_t IncAngleMax;
     int16_t SpeedTemp;
+    int16_t SpeedFilt;
     int16_t AngleCenter;
     int16_t AngleLowLimit;
     int16_t AngleHighLimit;

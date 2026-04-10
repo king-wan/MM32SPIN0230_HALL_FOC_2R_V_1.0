@@ -6,17 +6,97 @@
 
 /*------------------- Private variables ---------------*/
 PWM_GEN_T pwm_gen;
+
+#define PWM_ADC_SAMPLE_NS              1200U
+#define PWM_ADC_NOISE_NS               1800U
+#define PWM_ADC_RISE_NS                1800U
+#define PWM_ADC_DEAD_NS                800U
+#define PWM_ADC_TRIGGER_GUARD_TICKS    4U
+#define PWM_NS_TO_TICKS(ns)            ((uint16_t)((((SYSCLK_HSI_60MHz / 1000000U) * (ns)) + 999U) / 1000U))
+#define PWM_ADC_TSAMPL_TICKS           PWM_NS_TO_TICKS(PWM_ADC_SAMPLE_NS)
+#define PWM_ADC_TNOISE_TICKS           PWM_NS_TO_TICKS(PWM_ADC_NOISE_NS)
+#define PWM_ADC_TRISE_TICKS            PWM_NS_TO_TICKS(PWM_ADC_RISE_NS)
+#define PWM_ADC_TDEAD_TICKS            PWM_NS_TO_TICKS(PWM_ADC_DEAD_NS)
 	
 /*------------------ Private functions ----------------*/
 void PWM_GEN_init(PWM_GEN_T *u1);
 void PWM_GEN_calc(PWM_GEN_T *u1);
 void Update_PWM(PWM_GEN_T *u1);
+static void PWM_UpdateAdcTriggerPoint(PWM_GEN_T *u1);
+
+static void PWM_UpdateAdcTriggerPoint(PWM_GEN_T *u1)
+{
+	int16_t cmp_min = u1->CompA;
+	int16_t cmp_mid = u1->CompB;
+	int16_t cmp_max = u1->CompC;
+	int16_t cmp_temp = 0;
+	uint16_t top_window = 0;
+	uint16_t upper_window = 0;
+	uint16_t upper_threshold = PWM_ADC_TDEAD_TICKS + PWM_ADC_TRISE_TICKS + PWM_ADC_TSAMPL_TICKS;
+	uint16_t zero_threshold = PWM_ADC_TDEAD_TICKS + PWM_ADC_TNOISE_TICKS;
+	uint16_t zero_fallback_threshold = PWM_ADC_TDEAD_TICKS + ((PWM_ADC_TNOISE_TICKS + PWM_ADC_TSAMPL_TICKS) >> 1);
+	int32_t ccr4 = u1->N_halfPeriod - PWM_ADC_TRIGGER_GUARD_TICKS;
+
+	if (cmp_min > cmp_mid)
+	{
+		cmp_temp = cmp_min;
+		cmp_min = cmp_mid;
+		cmp_mid = cmp_temp;
+	}
+	if (cmp_mid > cmp_max)
+	{
+		cmp_temp = cmp_mid;
+		cmp_mid = cmp_max;
+		cmp_max = cmp_temp;
+	}
+	if (cmp_min > cmp_mid)
+	{
+		cmp_temp = cmp_min;
+		cmp_min = cmp_mid;
+		cmp_mid = cmp_temp;
+	}
+
+	if (cmp_max < u1->N_halfPeriod)
+	{
+		top_window = (uint16_t)(u1->N_halfPeriod - cmp_max);
+	}
+	if (cmp_max > cmp_mid)
+	{
+		upper_window = (uint16_t)(cmp_max - cmp_mid);
+	}
+
+	/* Follow the V8 idea: prefer the top zero-vector window first,
+	   then back off into the upper active vector when the zero-vector is short. */
+	if (top_window > zero_threshold)
+	{
+		ccr4 = u1->N_halfPeriod - ((int32_t)(top_window - PWM_ADC_TDEAD_TICKS - PWM_ADC_TSAMPL_TICKS) >> 1);
+	}
+	else if (upper_window > upper_threshold)
+	{
+		ccr4 = u1->N_halfPeriod - (int32_t)(top_window + PWM_ADC_TSAMPL_TICKS);
+	}
+	else if (top_window > zero_fallback_threshold)
+	{
+		ccr4 = u1->N_halfPeriod - (int32_t)(PWM_ADC_TDEAD_TICKS + PWM_ADC_TNOISE_TICKS - top_window);
+	}
+
+	if (ccr4 >= u1->N_halfPeriod)
+	{
+		ccr4 = u1->N_halfPeriod - PWM_ADC_TRIGGER_GUARD_TICKS;
+	}
+	else if (ccr4 <= 0)
+	{
+		ccr4 = PWM_ADC_TRIGGER_GUARD_TICKS;
+	}
+
+	SET_CCR4_VAL((uint16_t)ccr4);
+}
 
 /*************************************
-	º¯ÊýÃû£ºPWM_GEN_init
-	ÃèÊö£º³õÊ¼»¯SVPWM½á¹¹Ìå
-	ÊäÈë£º*u1---PWM_GEN_T½á¹¹Ìå±äÁ¿
-	Êä³ö£ºÎÞ
+	å‡½æ•°åï¼šPWM_GEN_init
+	æè¿°ï¼šåˆå§‹åŒ–SVPWMç»“æž„ä½“
+	è¾“å…¥ï¼š*u1---PWM_GEN_Tç»“æž„ä½“å˜é‡
+	è¾“å‡ºï¼šæ— 
 **************************************/
 void PWM_GEN_init(PWM_GEN_T *u1)
 {
@@ -31,10 +111,10 @@ void PWM_GEN_init(PWM_GEN_T *u1)
 }
 
 /*************************************
-	º¯ÊýÃû£ºPWM_GEN_calc
-	ÃèÊö£º¼ÆËãÆß¶ÎÊ½ºÍÎå¶ÎÊ½Õ¼¿Õ±È
-	ÊäÈë£º*u1---PWM_GEN_T½á¹¹Ìå±äÁ¿
-	Êä³ö£ºÎÞ
+	å‡½æ•°åï¼šPWM_GEN_calc
+	æè¿°ï¼šè®¡ç®—ä¸ƒæ®µå¼å’Œäº”æ®µå¼å ç©ºæ¯”
+	è¾“å…¥ï¼š*u1---PWM_GEN_Tç»“æž„ä½“å˜é‡
+	è¾“å‡ºï¼šæ— 
 **************************************/
 void PWM_GEN_calc(PWM_GEN_T *u1)
 {
@@ -52,7 +132,7 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 	s32 tbon = 0;
 	s32 tcon = 0;
 	
-	//¼ÆËãÈýÏà¼«ÐÔ
+	//è®¡ç®—ä¸‰ç›¸æžæ€§
 	tempA = (28378*(s32)u1->Alpha)>>15;
 	tempB = (u1->Beta)>>1;
 	
@@ -60,7 +140,7 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 	Vref2 = tempA - tempB;		//Valpha*sqrt(3)/2 - Vbeta/2 
 	Vref3 = -tempA - tempB;		//-Valpha*sqrt(3)/2 - Vbeta/2   
 	
-	//ÉÈÇø¼ÆËã
+	//æ‰‡åŒºè®¡ç®—
 	sector = 0;
 	if(Vref1>=0)
 	{
@@ -75,35 +155,35 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 		sector = sector + 4;
 	}
 	
-	//¼ÆËãÁ½¸ö»ù±¾Ê¸Á¿µÄ³ÖÐøÊ±¼ät1¡¢t2£¬ËÀÇø´¦ÀíÔÝÎÞ
+	//è®¡ç®—ä¸¤ä¸ªåŸºæœ¬çŸ¢é‡çš„æŒç»­æ—¶é—´t1ã€t2ï¼Œæ­»åŒºå¤„ç†æš‚æ— 
 	switch(sector)
 	{
-		case 1:  //ÉÈÇø2
+		case 1:  //æ‰‡åŒº2
 		t1on =  -Vref3;              
 		t2on =  -Vref2;
 		break;
 
-		case 2: //ÉÈÇø6
+		case 2: //æ‰‡åŒº6
 		t1on = -Vref1;              
 		t2on = -Vref3;
 		break;
 
-		case 3: //ÉÈÇø1
+		case 3: //æ‰‡åŒº1
 		t1on = Vref1;               
 		t2on = Vref2;     
 		break;
 
-		case 4: //ÉÈÇø4         
+		case 4: //æ‰‡åŒº4         
 		t1on = -Vref2;              
 		t2on = -Vref1;
 		break;
 
-		case 5: //ÉÈÇø3
+		case 5: //æ‰‡åŒº3
 		t1on = Vref3;               
 		t2on = Vref1;
 		break;
 
-		case 6: //ÉÈÇø5
+		case 6: //æ‰‡åŒº5
 		t1on = Vref2;               
 		t2on = Vref3;
 		break;	
@@ -113,12 +193,12 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 		
 	}
 
-	//¼ÆËãÇÐ»»Ê±¼ä
-	taon = (32767-t1on-t2on)>>1;		//(1-t1-t2)/2,Q15¸ñÊ½
+	//è®¡ç®—åˆ‡æ¢æ—¶é—´
+	taon = (32767-t1on-t2on)>>1;		//(1-t1-t2)/2,Q15æ ¼å¼
 	tbon = taon + t1on;					//taon+t1
 	tcon = tbon + t2on;					//tbon+t2
 		
-	//»»Ëã³ÉÕ¼¿Õ±È
+	//æ¢ç®—æˆå ç©ºæ¯”
 	taon = (taon * u1->N_halfPeriod)>>15;
 
 	if(taon >= u1->N_halfPeriod)
@@ -159,42 +239,42 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 	{ }
 
 		
-	//·Ö·¢µ½ÈýÏàÊ¸Á¿ÇÐ»»Ê±¼äµãTa¡¢Tb¡¢Tc
+	//åˆ†å‘åˆ°ä¸‰ç›¸çŸ¢é‡åˆ‡æ¢æ—¶é—´ç‚¹Taã€Tbã€Tc
 	if(u1->Mode == SEVENMODE)
 	{
-		switch(sector)	//Æß¶ÎÊ½µ÷ÖÆ
+		switch(sector)	//ä¸ƒæ®µå¼è°ƒåˆ¶
 		{
-			case 1:       //ÉÈÇø2
+			case 1:       //æ‰‡åŒº2
 			u1->CompA = tbon;
 			u1->CompB = tcon;      
 			u1->CompC = taon;
 			break;
 
-			case 2:       //ÉÈÇø6
+			case 2:       //æ‰‡åŒº6
 			u1->CompA = tcon;     
 			u1->CompB = taon;
 			u1->CompC = tbon;
 			break;
 
-			case 3:       //ÉÈÇø1
+			case 3:       //æ‰‡åŒº1
 			u1->CompA = tcon;    
 			u1->CompB = tbon;    
 			u1->CompC = taon;
 			break;
 
-			case 4:       //ÉÈÇø4
+			case 4:       //æ‰‡åŒº4
 			u1->CompA = taon;  
 			u1->CompB = tbon;
 			u1->CompC = tcon;
 			break;
 
-			case 5:       //ÉÈÇø3
+			case 5:       //æ‰‡åŒº3
 			u1->CompA = taon;   
 			u1->CompB = tcon;
 			u1->CompC = tbon;
 			break;
 
-			case 6:       //ÉÈÇø5
+			case 6:       //æ‰‡åŒº5
 			u1->CompA = tbon;
 			u1->CompB = taon;   
 			u1->CompC = tcon;
@@ -209,39 +289,39 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 	}
 	else if(u1->Mode == FIVEMODE)
 	{
-		switch(sector)	//Îå¶ÎÊ½µ÷ÖÆ
+		switch(sector)	//äº”æ®µå¼è°ƒåˆ¶
 		{
-				case 1:       //ÉÈÇø2
+				case 1:       //æ‰‡åŒº2
 				u1->CompA = tbon - taon;
 				u1->CompB = tcon - taon;      
 				u1->CompC = 0;
 				break;
 
-				case 2:       //ÉÈÇø6
+				case 2:       //æ‰‡åŒº6
 				u1->CompA = tcon - taon;     
 				u1->CompB = 0;
 				u1->CompC = tbon - taon;
 				break;
 
-				case 3:       //ÉÈÇø1
+				case 3:       //æ‰‡åŒº1
 				u1->CompA = tcon - taon;    
 				u1->CompB = tbon - taon;    
 				u1->CompC = 0;
 				break;
 
-				case 4:       //ÉÈÇø4
+				case 4:       //æ‰‡åŒº4
 				u1->CompA = 0;  
 				u1->CompB = tbon - taon;
 				u1->CompC = tcon - taon;
 				break;
 
-				case 5:       //ÉÈÇø3
+				case 5:       //æ‰‡åŒº3
 				u1->CompA = 0;   
 				u1->CompB = tcon - taon;
 				u1->CompC = tbon - taon;
 				break;
 
-				case 6:       //ÉÈÇø5
+				case 6:       //æ‰‡åŒº5
 				u1->CompA = tbon - taon;
 				u1->CompB = 0;   
 				u1->CompC = tcon - taon;
@@ -265,13 +345,14 @@ void PWM_GEN_calc(PWM_GEN_T *u1)
 }
 
 /****************************************************************
-	º¯ÊýÃû£ºUpdate_PWM
-	ÃèÊö£º¸üÐÂÕ¼¿Õ±È
-	ÊäÈë: *u1 --- PWM_GEN_T½á¹¹Ìå±äÁ¿
-	Êä³ö£ºÎÞ
+	å‡½æ•°åï¼šUpdate_PWM
+	æè¿°ï¼šæ›´æ–°å ç©ºæ¯”
+	è¾“å…¥: *u1 --- PWM_GEN_Tç»“æž„ä½“å˜é‡
+	è¾“å‡ºï¼šæ— 
 ****************************************************************/
 void Update_PWM(PWM_GEN_T *u1)
 {
+	PWM_UpdateAdcTriggerPoint(u1);
 	TIM1->CCR1 = u1->CompA;
 	TIM1->CCR2 = u1->CompB;
 	TIM1->CCR3 = u1->CompC;

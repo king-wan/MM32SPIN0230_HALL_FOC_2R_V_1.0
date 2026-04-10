@@ -26,6 +26,7 @@ volatile uint8_t g_hall_edge_new_buf[32] = {0};
 #define HALL_Q15_15DEG               2730
 #define HALL_Q15_30DEG               5460
 #define HALL_Q15_60DEG               10922
+#define HALL_Q15_FULL_TURN           65536L
 #define HALL_SECTOR_NUM              6U
 #define HALL_TIMEOUT_PWM_CYCLES      2500U
 #define HALL_MIN_VALID_PERIOD_US     20U
@@ -147,6 +148,41 @@ static int16_t Hall_ClampAngleToWindow(const HALLType *u, int16_t angle, int32_t
     return u->AngleLowLimit;
 }
 
+static int16_t Hall_CalcSpeedAdvance(const HALLType *u)
+{
+#if HALL_SPEED_ADV_ENABLE
+    int32_t speed_mag = u->SpeedFilt;
+    int32_t advance;
+
+    if (speed_mag < HALL_SPEED_ADV_MIN_RPM10)
+    {
+        return 0;
+    }
+
+    advance = ((speed_mag * (int32_t)POLEPAIRS * HALL_Q15_FULL_TURN * (int32_t)HALL_SPEED_ADV_DELAY_US) + 3000000L) / 6000000L;
+    if (advance > HALL_SPEED_ADV_MAX_Q15)
+    {
+        advance = HALL_SPEED_ADV_MAX_Q15;
+    }
+
+    if (u->CMDDIR < 0)
+    {
+        advance = -advance;
+    }
+
+    return (int16_t)advance;
+#else
+    (void)u;
+    return 0;
+#endif
+}
+
+static void Hall_UpdateFocAngle(HALLType *u)
+{
+    u->AngleAdvance = Hall_CalcSpeedAdvance(u);
+    u->FocAngle = Hall_WrapAngle((int32_t)u->Angle + (int32_t)u->AngleAdvance);
+}
+
 static void Hall_UpdateSpeedFromPeriod(HALLType *u)
 {
     uint8_t idx;
@@ -164,6 +200,14 @@ static void Hall_UpdateSpeedFromPeriod(HALLType *u)
 
     u->HallTimeSum = hall_sum;
     u->SpeedTemp = (int16_t)Division(SpeedGain, (int32_t)hall_sum);
+    if (u->SpeedFilt == 0)
+    {
+        u->SpeedFilt = u->SpeedTemp;
+    }
+    else
+    {
+        u->SpeedFilt = (int16_t)(((int32_t)u->SpeedFilt * 3 + (int32_t)u->SpeedTemp) >> 2);
+    }
     u->PredictedDpp = (int16_t)Division(4096000, (int32_t)hall_sum);
     u->IncAngle = u->PredictedDpp;
     u->IncAngleMax = HALL_Q15_60DEG;
@@ -241,6 +285,7 @@ static void Hall_HandleTransition(HALLType *u, uint8_t new_hall)
     synced_angle = Hall_GetCenterAngle(u, new_hall);
     Hall_UpdateAngleWindow(u, synced_angle, use_half_sector);
     u->Angle = synced_angle;
+    Hall_UpdateFocAngle(u);
     u->HallState = (edge_dir == 0) ? 0U : 1U;
 }
 
@@ -282,6 +327,7 @@ void HALLModuleInit(HALLType *u)
     u->PreHallValue = hall_now;
     u->EdgeDir = 0;
     u->SpeedTemp = 0;
+    u->SpeedFilt = 0;
     u->PredictedDpp = 0;
     u->IncAngle = 0;
     u->IncAngleMax = HALL_Q15_60DEG;
@@ -299,6 +345,7 @@ void HALLModuleInit(HALLType *u)
 
     u->Angle = Hall_GetCenterAngle(u, hall_now);
     Hall_UpdateAngleWindow(u, u->Angle, 1U);
+    Hall_UpdateFocAngle(u);
 
     g_hall_edge_head = 0;
     g_hall_edge_tail = 0;
@@ -336,12 +383,14 @@ void HALLModuleCalc(HALLType *u)
     if (u->NoEdgeCnt >= HALL_TIMEOUT_PWM_CYCLES)
     {
         u->SpeedTemp = 0;
+        u->SpeedFilt = 0;
         u->PredictedDpp = 0;
         u->IncAngle = 0;
         u->IncAngleMax = 0;
         u->HallState = 0U;
         u->Angle = Hall_GetCenterAngle(u, u->PreHallValue);
         Hall_UpdateAngleWindow(u, u->Angle, 1U);
+        Hall_UpdateFocAngle(u);
         return;
     }
 
@@ -358,6 +407,7 @@ void HALLModuleCalc(HALLType *u)
 
     u->IncAngle = (int16_t)predicted_dpp;
     u->Angle = Hall_ClampAngleToWindow(u, Hall_WrapAngle((int32_t)u->Angle + predicted_dpp), predicted_dpp);
+    Hall_UpdateFocAngle(u);
 }
 
 /****************************************************************

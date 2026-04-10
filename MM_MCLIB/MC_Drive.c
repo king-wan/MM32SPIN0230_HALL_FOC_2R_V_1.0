@@ -24,8 +24,10 @@ Trig_Components Vector_Components;
 
 uint32_t u32IuSum = 0;
 uint32_t u32IvSum = 0;
-uint16_t u16IuOffset = 0;
-uint16_t u16IvOffset = 0;
+int32_t s32IuOffsetQ3 = 0;
+int32_t s32IvOffsetQ3 = 0;
+int32_t s32IuFiltQ3 = 0;
+int32_t s32IvFiltQ3 = 0;
 uint8_t PositionHoldEnable = 0;
 int16_t PositionHoldTargetAngle = 0;
 int16_t PositionHoldIq = 0;
@@ -97,6 +99,33 @@ static int16_t WrapAngleErr(int16_t target, int16_t angle)
         err += 65536;
     }
     return (int16_t)err;
+}
+
+static int32_t Abs32(int32_t value)
+{
+    return (value >= 0) ? value : -value;
+}
+
+static int16_t ClampToS16(int32_t value)
+{
+    if (value > 32767)
+    {
+        return 32767;
+    }
+    if (value < -32768)
+    {
+        return -32768;
+    }
+    return (int16_t)value;
+}
+
+static int32_t CurrentIIRStep(int32_t state, int32_t sample, uint8_t shift)
+{
+    if (shift == 0U)
+    {
+        return sample;
+    }
+    return state + ((sample - state) >> shift);
 }
 
 static uint8_t GetHallNextState(uint8_t hall)
@@ -187,6 +216,59 @@ static uint8_t MotorCmdActive(void)
 #endif
 }
 
+static uint8_t CurrentOffsetTrackEnabled(int32_t iu_raw_q3, int32_t iv_raw_q3)
+{
+#if CURRENT_OFFSET_TRACK_ENABLE
+    if (MotorState != IDLESTATE)
+    {
+        return 0U;
+    }
+    if ((TIM1->BDTR & TIM_BDTR_MOE) != 0U)
+    {
+        return 0U;
+    }
+    if (MotorCmdActive() != 0U)
+    {
+        return 0U;
+    }
+    if (Abs32((int32_t)HALL1.SpeedTemp) > CURRENT_OFFSET_TRACK_MAX_RPM)
+    {
+        return 0U;
+    }
+    if ((Abs32(iu_raw_q3) > CURRENT_OFFSET_TRACK_TH_Q3) ||
+        (Abs32(iv_raw_q3) > CURRENT_OFFSET_TRACK_TH_Q3))
+    {
+        return 0U;
+    }
+    return 1U;
+#else
+    (void)iu_raw_q3;
+    (void)iv_raw_q3;
+    return 0U;
+#endif
+}
+
+static uint8_t CurrentRuntimeFilterEnabled(void)
+{
+#if CURRENT_RUNTIME_FILTER_ENABLE
+    if (MotorState != RUNSTATE)
+    {
+        return 0U;
+    }
+    if (s_pos_hold_active != 0U)
+    {
+        return 0U;
+    }
+    if (s_start_ol_active != 0U)
+    {
+        return 0U;
+    }
+    return 1U;
+#else
+    return 0U;
+#endif
+}
+
 /****************************************************************
     Function: Motor_Drive
 ****************************************************************/
@@ -195,11 +277,16 @@ void Motor_Drive(void)
     static uint16_t u16Cnt = 0;
     static uint8_t s_prev_hold = 0;
     static uint8_t s_pos_move_active = 0;
+    static uint8_t s_current_filter_ready = 0;
     uint8_t hall_now;
     uint8_t cmd_active;
     int16_t ctrlAngle;
     int16_t hold_iq_cmd = 0;
     int16_t start_dir = (HALL1.CMDDIR >= 0) ? 1 : -1;
+    int32_t iu_adc_q3;
+    int32_t iv_adc_q3;
+    int32_t iu_raw_q3;
+    int32_t iv_raw_q3;
 
     TIMFlag.PWMIn = 1;
 
@@ -217,24 +304,68 @@ void Motor_Drive(void)
         TIMFlag.Delay200ms = 1;
     }
 
-    if (u16Cnt <= 127)
+    iu_adc_q3 = (int32_t)GET_ADC_INJECT_VALUE(ADC1, IR_U_INJECT_RANK) << 3;
+    iv_adc_q3 = (int32_t)GET_ADC_INJECT_VALUE(ADC1, IR_V_INJECT_RANK) << 3;
+
+    if (u16Cnt < CURRENT_OFFSET_CAL_SAMPLES)
     {
         u16Cnt++;
-        u32IuSum += (int16_t)GET_ADC_VALUE(IR_U_CHANNEL);
-        u32IvSum += (int16_t)GET_ADC_VALUE(IR_V_CHANNEL);
+        u32IuSum += (uint32_t)(iu_adc_q3 >> 3);
+        u32IvSum += (uint32_t)(iv_adc_q3 >> 3);
+        ADC_Structure.IU = 0;
+        ADC_Structure.IV = 0;
     }
-    else if (u16Cnt == 128)
+    else if (u16Cnt == CURRENT_OFFSET_CAL_SAMPLES)
     {
         u16Cnt++;
-        u16IuOffset = u32IuSum >> 4;
-        u16IvOffset = u32IvSum >> 4;
+        s32IuOffsetQ3 = (int32_t)(((u32IuSum << 3) + (CURRENT_OFFSET_CAL_SAMPLES >> 1)) / CURRENT_OFFSET_CAL_SAMPLES);
+        s32IvOffsetQ3 = (int32_t)(((u32IvSum << 3) + (CURRENT_OFFSET_CAL_SAMPLES >> 1)) / CURRENT_OFFSET_CAL_SAMPLES);
         u32IuSum = 0;
         u32IvSum = 0;
+        s32IuFiltQ3 = 0;
+        s32IvFiltQ3 = 0;
+        s_current_filter_ready = 0U;
+        ADC_Structure.IU = 0;
+        ADC_Structure.IV = 0;
     }
     else
     {
-        ADC_Structure.IU = u16IuOffset - (GET_ADC_VALUE(IR_U_CHANNEL) << 3);
-        ADC_Structure.IV = u16IvOffset - (GET_ADC_VALUE(IR_V_CHANNEL) << 3);
+        iu_raw_q3 = s32IuOffsetQ3 - iu_adc_q3;
+        iv_raw_q3 = s32IvOffsetQ3 - iv_adc_q3;
+
+        if (CurrentOffsetTrackEnabled(iu_raw_q3, iv_raw_q3))
+        {
+            s32IuOffsetQ3 = CurrentIIRStep(s32IuOffsetQ3, iu_adc_q3, CURRENT_OFFSET_TRACK_SHIFT);
+            s32IvOffsetQ3 = CurrentIIRStep(s32IvOffsetQ3, iv_adc_q3, CURRENT_OFFSET_TRACK_SHIFT);
+            iu_raw_q3 = s32IuOffsetQ3 - iu_adc_q3;
+            iv_raw_q3 = s32IvOffsetQ3 - iv_adc_q3;
+        }
+
+        if (CurrentRuntimeFilterEnabled() != 0U)
+        {
+            if (s_current_filter_ready == 0U)
+            {
+                s32IuFiltQ3 = iu_raw_q3;
+                s32IvFiltQ3 = iv_raw_q3;
+                s_current_filter_ready = 1U;
+            }
+            else
+            {
+                s32IuFiltQ3 = CurrentIIRStep(s32IuFiltQ3, iu_raw_q3, CURRENT_FILTER_SHIFT);
+                s32IvFiltQ3 = CurrentIIRStep(s32IvFiltQ3, iv_raw_q3, CURRENT_FILTER_SHIFT);
+            }
+
+            ADC_Structure.IU = ClampToS16(s32IuFiltQ3);
+            ADC_Structure.IV = ClampToS16(s32IvFiltQ3);
+        }
+        else
+        {
+            s32IuFiltQ3 = iu_raw_q3;
+            s32IvFiltQ3 = iv_raw_q3;
+            s_current_filter_ready = 0U;
+            ADC_Structure.IU = ClampToS16(iu_raw_q3);
+            ADC_Structure.IV = ClampToS16(iv_raw_q3);
+        }
         ADC_Structure.VBusInput = GET_ADC_VALUE(VBUS_CHANNEL);
         ADC_Structure.SPEED = GET_ADC_VALUE(VR_CHANNEL);
     }
@@ -264,7 +395,7 @@ void Motor_Drive(void)
         s_start_ol_step = START_OL_STEP_INIT;
         s_pos_hold_target_angle = PositionHoldTargetAngle;
     }
-    ctrlAngle = HALL1.Angle;
+    ctrlAngle = HALL1.FocAngle;
     if (s_pos_hold_active)
     {
         if (!cmd_active)

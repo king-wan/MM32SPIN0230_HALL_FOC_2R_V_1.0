@@ -247,30 +247,31 @@ void Bsp_Gpio_Init(void)
   */
 void Board_ADC_Init(void)
 {
-    /*ADC  RANK Array*/
-    ADC_Channel_TypeDef sUserAdc1Channel[4];
+    ADC_Channel_TypeDef sUserAdc1Channel[2];
+    ADC_Channel_TypeDef sUserAdc1InjectChannel[2];
 
-    /* Configure the ADC RANK Sequence*/
-    sUserAdc1Channel[0].u8Rank = IR_U_RANK;
-    sUserAdc1Channel[0].sAdcChannel = IR_U_CHANNEL;
+    /* Regular channels keep the slow-loop voltage and command inputs. */
+    sUserAdc1Channel[0].u8Rank = VBUS_RANK;
+    sUserAdc1Channel[0].sAdcChannel = VBUS_CHANNEL;
     sUserAdc1Channel[0].pNext = &sUserAdc1Channel[1];
-	
-    sUserAdc1Channel[1].u8Rank = IR_V_RANK;
-    sUserAdc1Channel[1].sAdcChannel = IR_V_CHANNEL;
-    sUserAdc1Channel[1].pNext = &sUserAdc1Channel[2];
-	
-    sUserAdc1Channel[2].u8Rank = VBUS_RANK;
-    sUserAdc1Channel[2].sAdcChannel = VBUS_CHANNEL;
-    sUserAdc1Channel[2].pNext = &sUserAdc1Channel[3];
-	
-    sUserAdc1Channel[3].u8Rank = VR_RANK;
-    sUserAdc1Channel[3].sAdcChannel = VR_CHANNEL;
-    sUserAdc1Channel[3].pNext = NULL;
-	
-	/* Select the ADC external trigger source of the ADC is T1_CC5*/
+
+    sUserAdc1Channel[1].u8Rank = VR_RANK;
+    sUserAdc1Channel[1].sAdcChannel = VR_CHANNEL;
+    sUserAdc1Channel[1].pNext = NULL;
+
+    /* Injected group follows the V8-style fast current sampling path. */
+    sUserAdc1InjectChannel[0].u8Rank = IR_U_INJECT_RANK;
+    sUserAdc1InjectChannel[0].sAdcChannel = IR_U_CHANNEL;
+    sUserAdc1InjectChannel[0].pNext = &sUserAdc1InjectChannel[1];
+
+    sUserAdc1InjectChannel[1].u8Rank = IR_V_INJECT_RANK;
+    sUserAdc1InjectChannel[1].sAdcChannel = IR_V_CHANNEL;
+    sUserAdc1InjectChannel[1].pNext = NULL;
+
+	/* Select the ADC external trigger source of the ADC is T1_CC4*/
     Drv_Adc_Basic_Init(ADC1, ADC_ExtTrig_T1_CC4);
-     /* Select the ADC sample time*/
-    Drv_Adc_Channel_Init(ADC1, sUserAdc1Channel, ADC_SampleTime_2_5); 
+    Drv_Adc_Channel_Init(ADC1, sUserAdc1Channel, ADC_SampleTime_2_5);
+    Drv_Adc_Injected_Channel_Init(ADC1, sUserAdc1InjectChannel, ADC_SampleTime_2_5, ADC_InjectedExtTrig_T1_CC4);
 
     ADC_Cmd(ADC1, ENABLE);
 }

@@ -45,6 +45,8 @@ typedef struct ADC_Channel
  
 #define READ_ADC_EOC_FLAG()      READ_BIT(ADC1->ADSTA, ADC_IT_EOC)
 #define CLEAN_ADC_EOC_FLAG()     SET_BIT(ADC1->ADSTA, ADC_IT_EOC)
+#define READ_ADC_JEOS_FLAG()     READ_BIT(ADC1->ADSTA_EXT, ADC_ADSTA_EXT_JEOSIF_Msk)
+#define CLEAN_ADC_JEOS_FLAG()    SET_BIT(ADC1->ADSTA_EXT, (0x01U << ADC_ADSTA_EXT_JEOSIF_Pos))
 
 /** ADC Sequential sampling */
 #define GET_ADC_VALUE(Channel)      (READ_REG(*(&(ADC1->ADDR0) + Channel)) & 0xFFF)
@@ -52,6 +54,7 @@ typedef struct ADC_Channel
 
 extern void Drv_Adc_Basic_Init(ADC_TypeDef* pAdc, uint32_t ADC_ExternalTrigConv);
 extern void Drv_Adc_Channel_Init(ADC_TypeDef* pAdc, ADC_Channel_TypeDef* pAdcChannel,uint32_t s32SampleTime);
+extern void Drv_Adc_Injected_Channel_Init(ADC_TypeDef* pAdc, ADC_Channel_TypeDef* pAdcChannel, uint32_t s32SampleTime, uint32_t u32TrigSource);
 
 /**
   * @}

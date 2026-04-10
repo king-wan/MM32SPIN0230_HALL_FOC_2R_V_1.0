@@ -91,6 +91,33 @@ void Drv_Adc_Channel_Init(ADC_TypeDef* pAdc, ADC_Channel_TypeDef* pAdcChannel,ui
     ADC_AnyChannelCmd(pAdc, ENABLE);
 }
 
+void Drv_Adc_Injected_Channel_Init(ADC_TypeDef* pAdc, ADC_Channel_TypeDef* pAdcChannel, uint32_t s32SampleTime, uint32_t u32TrigSource)
+{
+    uint8_t u8Temp = 0;
+
+    if ((pAdc == NULL) || (pAdcChannel == NULL))
+    {
+        return;
+    }
+
+    do
+    {
+        ADC_SampleTimeConfig(pAdc, pAdcChannel->sAdcChannel, s32SampleTime);
+        if (u8Temp < pAdcChannel->u8Rank)
+        {
+            ADC_InjectedChannelNumCfg(pAdc, pAdcChannel->u8Rank);
+        }
+        ADC_InjectedChannelSelect(pAdc, pAdcChannel->u8Rank, pAdcChannel->sAdcChannel);
+
+        u8Temp = pAdcChannel->u8Rank;
+        pAdcChannel = pAdcChannel->pNext;
+    } while (pAdcChannel != NULL);
+
+    ADC_InjectedExternalTrigSourceConfig(pAdc, u32TrigSource, ADC_InjectedExtTrig_Edge_Dual, ADC_InjectedExtTrig_Shift_0);
+    ADC_InjectedExternalTrigConvCmd(pAdc, ENABLE);
+    ADC_InjectedConvCmd(pAdc, ENABLE);
+}
+
 
 /**
   * @}
