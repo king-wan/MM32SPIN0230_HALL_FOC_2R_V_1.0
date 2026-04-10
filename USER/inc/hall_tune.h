@@ -25,11 +25,15 @@
 #define HALL_DEBUG_EDGE_ONLY        0
 #define HALL_DEBUG_START_STOP       0
 
-/* Startup tuning after Hall angle alignment has been corrected. */
-#define START_ALIGN_IQ_Q15          420
-#define START_KICK_IQ_Q15           300
+/*
+ * Startup tuning for the 24 V winding of maxon ECX SPEED 16 M.
+ * These values are still conservative versus the motor's 2.11 A nominal
+ * current, but much more suitable than the previous tiny bench values.
+ */
+#define START_ALIGN_IQ_Q15          2000
+#define START_KICK_IQ_Q15           3200
 #define START_KICK_ADV_ANGLE_Q15    3200
-#define START_OL_IQ_Q15             360
+#define START_OL_IQ_Q15             2600
 #define START_OL_STEP_INIT_Q15      6
 #define START_OL_STEP_MAX_Q15       28
 #define START_OL_STEP_RAMP_CYCLES   32
