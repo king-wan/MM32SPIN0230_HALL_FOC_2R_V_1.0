@@ -76,6 +76,8 @@ static uint8_t s_start_ol_active = 0;
 static uint16_t s_start_ol_cnt = 0;
 static int16_t s_start_ol_angle = 0;
 static int16_t s_start_ol_step = START_OL_STEP_INIT;
+static uint8_t s_prev_pos_hold_cmd = 0;
+static uint16_t s_pos_coarse_settle_cnt = 0;
 extern int16_t HallAngleOffset;
 
 /*------------------ Private functions ----------------*/
@@ -154,6 +156,40 @@ static uint8_t GetHallPrevState(uint8_t hall)
     case 5: return 4;
     default: return HOLD_TARGET_HALL;
     }
+}
+
+static int16_t GetHallCenterAngleByDir(uint8_t hall, int8_t dir)
+{
+    int32_t center;
+
+    if ((hall == 0U) || (hall == 7U))
+    {
+        hall = HALL_ReadHallPorts();
+    }
+    if ((hall == 0U) || (hall == 7U))
+    {
+        hall = HOLD_TARGET_HALL;
+    }
+
+    if (dir < 0)
+    {
+        center = (int32_t)HALL1.CCWAngleTab[hall] + 5460 + HallAngleOffset;
+    }
+    else
+    {
+        center = (int32_t)HALL1.CWAngleTab[hall] + 5460 + HallAngleOffset;
+    }
+
+    if (center > 32767)
+    {
+        center -= 65536;
+    }
+    else if (center < -32768)
+    {
+        center += 65536;
+    }
+
+    return (int16_t)center;
 }
 
 static int16_t GetFixedAlignAngle(void)
@@ -373,6 +409,22 @@ void Motor_Drive(void)
     Motor_Model(MotorState);
     cmd_active = MotorCmdActive();
 
+#if POSITION_COARSE_MODE
+    if ((PositionHoldEnable != 0U) && cmd_active)
+    {
+        if (s_prev_pos_hold_cmd == 0U)
+        {
+            s_pos_coarse_settle_cnt = POSITION_COARSE_SETTLE_CYCLES;
+        }
+        s_prev_pos_hold_cmd = 1U;
+    }
+    else
+    {
+        s_prev_pos_hold_cmd = 0U;
+        s_pos_coarse_settle_cnt = 0U;
+    }
+#endif
+
     HALLModuleCalc(&HALL1);
     HALLCheck(&HALL1);
     hall_now = HALL_ReadHallPorts();
@@ -447,11 +499,40 @@ void Motor_Drive(void)
         }
         else
         {
+#if POSITION_COARSE_MODE
+            int16_t angle_fdb = GetHallCenterAngleByDir(HALL1.RunHallValue, POSITION_HOLD_DIR);
+            int16_t angle_err = WrapAngleErr(s_pos_hold_target_angle, angle_fdb);
+            uint16_t abs_angle_err = (angle_err >= 0) ? (uint16_t)angle_err : (uint16_t)(-angle_err);
+#else
             int16_t angle_err = WrapAngleErr(s_pos_hold_target_angle, HALL1.Angle);
             uint16_t abs_angle_err = (angle_err >= 0) ? (uint16_t)angle_err : (uint16_t)(-angle_err);
+#endif
 
             if ((PositionHoldEnable != 0U) && cmd_active)
             {
+#if POSITION_COARSE_MODE
+                hold_iq_cmd = POSITION_COARSE_HOLD_IQ_Q15;
+                s_pos_move_active = 0U;
+
+                if (s_pos_coarse_settle_cnt > 0U)
+                {
+                    s_pos_coarse_settle_cnt--;
+                    IqRef = (POSITION_HOLD_DIR >= 0) ? POSITION_COARSE_SETTLE_IQ_Q15 : -POSITION_COARSE_SETTLE_IQ_Q15;
+                }
+                else if (angle_err > POSITION_COARSE_HOLD_DEAD_Q15)
+                {
+                    IqRef = hold_iq_cmd;
+                }
+                else if (angle_err < -POSITION_COARSE_HOLD_DEAD_Q15)
+                {
+                    IqRef = -hold_iq_cmd;
+                }
+                else
+                {
+                    IqRef = 0;
+                }
+                ctrlAngle = s_pos_hold_target_angle;
+#else
                 if (s_pos_move_active == 0U)
                 {
                     if (abs_angle_err >= POSITION_MOVE_ENTER_Q15)
@@ -488,6 +569,7 @@ void Motor_Drive(void)
                     }
                     ctrlAngle = s_pos_hold_target_angle;
                 }
+#endif
             }
             else if (s_start_align_cnt < START_ALIGN_PWM_CYCLES && cmd_active)
             {

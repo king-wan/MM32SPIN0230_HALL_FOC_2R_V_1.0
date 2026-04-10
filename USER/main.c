@@ -252,7 +252,7 @@ int main(void)
             {
                 s_speed_enable = 0;
                 s_pos_servo_active = 0;
-                s_coarse_goal_idx = 0;
+                s_coarse_goal_idx = POSITION_SECTOR_COUNT;
                 s_coarse_step_idx = 0;
                 s_coarse_dir = HALL1.CMDDIR;
                 s_coarse_step_hold_cnt = 0;
@@ -260,9 +260,14 @@ int main(void)
                 RP.Out = 0;
                 g_pos_ref_q15 = g_pos_fdb_q15;
                 s_pos_ref_filt_q15 = g_pos_ref_q15;
+                g_pos_target_sector = 0;
+                g_pos_current_sector = 0;
                 pos_err_q15 = 0;
                 abs_pos_err = 0;
                 Position.qdSum = 0;
+                Position.qOut = 0;
+                Speed.qdSum = 0;
+                Speed.qOut = 0;
             }
             else
             {
@@ -271,8 +276,6 @@ int main(void)
                 uint8_t hall_now = HALL1.RunHallValue;
                 uint8_t curr_idx;
                 uint8_t tgt_idx = PotToSectorIndex((uint16_t)ADC_Structure.SPEED);
-                uint8_t cw_steps;
-                uint8_t ccw_steps;
 
                 if ((hall_now == 0U) || (hall_now == 7U))
                 {
@@ -281,59 +284,13 @@ int main(void)
                 curr_idx = HallStateToIndex(hall_now);
                 g_pos_current_sector = (uint8_t)(curr_idx + 1U);
                 g_pos_target_sector = (uint8_t)(tgt_idx + 1U);
-
-                if (tgt_idx != s_coarse_goal_idx)
-                {
-                    s_coarse_goal_idx = tgt_idx;
-                    cw_steps = (uint8_t)((tgt_idx + POSITION_SECTOR_COUNT - curr_idx) % POSITION_SECTOR_COUNT);
-                    ccw_steps = (uint8_t)((curr_idx + POSITION_SECTOR_COUNT - tgt_idx) % POSITION_SECTOR_COUNT);
-                    if ((cw_steps == 0U) && (ccw_steps == 0U))
-                    {
-                        s_coarse_dir = HALL1.CMDDIR;
-                        s_coarse_step_idx = curr_idx;
-                    }
-                    else if (cw_steps <= ccw_steps)
-                    {
-                        s_coarse_dir = 1;
-                        s_coarse_step_idx = (uint8_t)((curr_idx + 1U) % POSITION_SECTOR_COUNT);
-                    }
-                    else
-                    {
-                        s_coarse_dir = -1;
-                        s_coarse_step_idx = (uint8_t)((curr_idx + POSITION_SECTOR_COUNT - 1U) % POSITION_SECTOR_COUNT);
-                    }
-                    s_coarse_step_hold_cnt = 0;
-                }
-
-                if (curr_idx == s_coarse_goal_idx)
-                {
-                    s_coarse_step_idx = s_coarse_goal_idx;
-                    s_coarse_step_hold_cnt = 0;
-                }
-                else if (curr_idx == s_coarse_step_idx)
-                {
-                    if (s_coarse_step_hold_cnt < POSITION_SECTOR_DWELL_CYCLES)
-                    {
-                        s_coarse_step_hold_cnt++;
-                    }
-                    else if (s_coarse_dir > 0)
-                    {
-                        s_coarse_step_idx = (uint8_t)((curr_idx + 1U) % POSITION_SECTOR_COUNT);
-                        s_coarse_step_hold_cnt = 0;
-                    }
-                    else
-                    {
-                        s_coarse_step_idx = (uint8_t)((curr_idx + POSITION_SECTOR_COUNT - 1U) % POSITION_SECTOR_COUNT);
-                        s_coarse_step_hold_cnt = 0;
-                    }
-                }
-                else
-                {
-                    s_coarse_step_hold_cnt = 0;
-                }
-
-                HALL1.CMDDIR = s_coarse_dir;
-                g_pos_ref_q15 = GetSectorCenterAngleQ15(k_pos_hall_seq[s_coarse_step_idx], s_coarse_dir);
+                HALL1.CMDDIR = POSITION_HOLD_DIR;
+                s_coarse_dir = POSITION_HOLD_DIR;
+                s_coarse_goal_idx = tgt_idx;
+                s_coarse_step_idx = tgt_idx;
+                s_coarse_step_hold_cnt = 0;
+                g_pos_fdb_q15 = GetSectorCenterAngleQ15(k_pos_hall_seq[curr_idx], POSITION_HOLD_DIR);
+                g_pos_ref_q15 = GetSectorCenterAngleQ15(k_pos_hall_seq[tgt_idx], POSITION_HOLD_DIR);
                 s_pos_ref_filt_q15 = g_pos_ref_q15;
 #else
                 int16_t pos_ref_raw_q15 = PotToPositionQ15((uint16_t)ADC_Structure.SPEED);
@@ -361,12 +318,19 @@ int main(void)
                     }
                 }
 
-                s_speed_enable = 1;
-                RP.Out = (abs_pos_err > POSITION_SPEED_MAX_RPM) ? POSITION_SPEED_MAX_RPM : abs_pos_err;
+                s_speed_enable = (s_pos_servo_active != 0U) ? 1U : 0U;
             }
-            PositionHoldEnable = (RP.OutEn != 0U) ? 1U : 0U;
+            PositionHoldEnable = ((RP.OutEn != 0U) &&
+                                  (s_pos_servo_active == 0U) &&
+                                  (g_pos_current_sector != 0U) &&
+                                  (g_pos_current_sector == g_pos_target_sector)) ? 1U : 0U;
             PositionHoldTargetAngle = g_pos_ref_q15;
             PositionHoldIq = POSITION_HOLD_IQ_Q15;
+
+            Position.qInRef = pos_err_q15;
+            Position.qInMeas = 0;
+            CalcPI(&Position);
+            RP.Out = (s_speed_enable != 0U) ? Position.qOut : 0;
 #endif
 
 #if !POSITION_LOOP_ENABLE
@@ -397,6 +361,10 @@ int main(void)
             }
 #endif
 
+#if POSITION_LOOP_ENABLE
+            RPValue.Max = POSITION_SPEED_MAX_RPM;
+            RPValue.Min = -POSITION_SPEED_MAX_RPM;
+#endif
             RPValue.Dest = RP.Out;
             LoopCmp_Cal(&RPValue);
             if (s_speed_enable == 0U)
@@ -405,12 +373,24 @@ int main(void)
                 RPValue.Dest = 0;
                 RPValue.Act = 0;
             }
+#if POSITION_LOOP_ENABLE
+            else if ((RPValue.Act > 0) && (RPValue.Act < POSITION_SPEED_MIN_RPM))
+            {
+                /* Hall position mode needs a minimum crawl speed to break static friction. */
+                RPValue.Act = POSITION_SPEED_MIN_RPM;
+            }
+            else if ((RPValue.Act < 0) && (RPValue.Act > -POSITION_SPEED_MIN_RPM))
+            {
+                RPValue.Act = -POSITION_SPEED_MIN_RPM;
+            }
+#else
             else if (RPValue.Act < RUN_MIN_REF)
             {
                 /* Avoid weak-command stall right after start. */
                 RPValue.Act = RUN_MIN_REF;
             }
-            else if ((RPValue.Dest == 0) && (RPValue.Act <= ZERO_REF_CLAMP_TH))
+#endif
+            else if ((RPValue.Dest == 0) && (Abs16((int16_t)RPValue.Act) <= ZERO_REF_CLAMP_TH))
             {
                 RPValue.Act = 0;
             }
@@ -418,18 +398,7 @@ int main(void)
             SpeedFdk.NewData = HALL1.SpeedTemp;
             MovingAvgCal(&SpeedFdk);
 
-#if POSITION_LOOP_ENABLE
-            Position.qInRef = pos_err_q15;
-            Position.qInMeas = 0;
-            CalcPI(&Position);
-            Speed.qInRef = 0;
-            Speed.qOut = 0;
-            Speed.qdSum = 0;
-            RPValue.Dest = abs_pos_err;
-            RPValue.Act = RPValue.Dest;
-#else
             Speed.qInRef = RPValue.Act;
-#endif
             Speed.qInMeas = SpeedFdk.Out;
             CalcPI(&Speed);
 #if !POSITION_LOOP_ENABLE

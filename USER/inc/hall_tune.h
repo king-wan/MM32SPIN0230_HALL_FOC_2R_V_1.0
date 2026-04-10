@@ -43,26 +43,37 @@
 #define START_OL_EXIT_SPD_RPM       30
 #define START_OL_MAX_CYCLES_CFG     2200
 
-/* Position loop hook. Disabled by default to preserve speed-mode behavior. */
-#define POSITION_LOOP_ENABLE        0
-#define POSITION_COARSE_MODE        0
-#define POSITION_CMD_SRC_POT        0
+/*
+ * Hall-only position control for the current 1 pole-pair motor.
+ *
+ * With 3 Hall sensors the raw mechanical position resolution is 6 sectors
+ * per turn, so the practical target here is a stable coarse position servo
+ * rather than a high-resolution servo axis.
+ */
+#define POSITION_LOOP_ENABLE        1
+#define POSITION_COARSE_MODE        1
+#define POSITION_CMD_SRC_POT        1
+#define POSITION_HOLD_DIR           MOTOR_DIR
 #define POSITION_REF_Q15_DEFAULT    0
-#define POSITION_ERR_DEAD_Q15       900
-#define POSITION_ERR_RELEASE_Q15    1400
-#define POSITION_SPEED_MAX_RPM      1800
+#define POSITION_ERR_DEAD_Q15       1800
+#define POSITION_ERR_RELEASE_Q15    2600
+#define POSITION_SPEED_MAX_RPM      1200
 #define POSITION_SPEED_MIN_RPM      180
-#define POSITION_TORQUE_MIN_Q15     220
-#define POSITION_HOLD_IQ_Q15        420
-#define POSITION_MOVE_IQ_Q15        520
+#define POSITION_TORQUE_MIN_Q15     520
+#define POSITION_HOLD_IQ_Q15        480
+#define POSITION_MOVE_IQ_Q15        1600
 #define POSITION_MOVE_ADV_Q15       5460
-#define POSITION_MOVE_ENTER_Q15     2200
-#define POSITION_MOVE_EXIT_Q15      1200
-#define POSITION_SECTOR_DWELL_CYCLES 20
+#define POSITION_MOVE_ENTER_Q15     3200
+#define POSITION_MOVE_EXIT_Q15      1800
+#define POSITION_COARSE_HOLD_IQ_Q15 220
+#define POSITION_COARSE_HOLD_DEAD_Q15 4200
+#define POSITION_COARSE_SETTLE_IQ_Q15 180
+#define POSITION_COARSE_SETTLE_CYCLES 320
+#define POSITION_SECTOR_DWELL_CYCLES 10
 #define POSITION_KP_Q15             900
 #define POSITION_KI_Q15             8
-#define POSITION_POT_MIN_ADC        80
-#define POSITION_POT_MAX_ADC        4000
+#define POSITION_POT_MIN_ADC        450
+#define POSITION_POT_MAX_ADC        3950
 #define POSITION_REF_FILTER_SHIFT   3
 #define POSITION_SECTOR_COUNT       6
 
