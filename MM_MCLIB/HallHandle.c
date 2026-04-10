@@ -153,6 +153,7 @@ static int16_t Hall_CalcSpeedAdvance(const HALLType *u)
 #if HALL_SPEED_ADV_ENABLE
     int32_t speed_mag = u->SpeedFilt;
     int32_t advance;
+    int32_t max_advance = HALL_SPEED_ADV_MAX_Q15;
 
     if (speed_mag < HALL_SPEED_ADV_MIN_RPM10)
     {
@@ -160,9 +161,25 @@ static int16_t Hall_CalcSpeedAdvance(const HALLType *u)
     }
 
     advance = ((speed_mag * (int32_t)POLEPAIRS * HALL_Q15_FULL_TURN * (int32_t)HALL_SPEED_ADV_DELAY_US) + 3000000L) / 6000000L;
-    if (advance > HALL_SPEED_ADV_MAX_Q15)
+
+    if (HALL_SPEED_ADV_HI_END_RPM10 > HALL_SPEED_ADV_HI_START_RPM10)
     {
-        advance = HALL_SPEED_ADV_MAX_Q15;
+        if (speed_mag >= HALL_SPEED_ADV_HI_END_RPM10)
+        {
+            max_advance = HALL_SPEED_ADV_HI_MAX_Q15;
+        }
+        else if (speed_mag > HALL_SPEED_ADV_HI_START_RPM10)
+        {
+            max_advance = HALL_SPEED_ADV_MAX_Q15 +
+                          ((speed_mag - HALL_SPEED_ADV_HI_START_RPM10) *
+                           (HALL_SPEED_ADV_HI_MAX_Q15 - HALL_SPEED_ADV_MAX_Q15)) /
+                          (HALL_SPEED_ADV_HI_END_RPM10 - HALL_SPEED_ADV_HI_START_RPM10);
+        }
+    }
+
+    if (advance > max_advance)
+    {
+        advance = max_advance;
     }
 
     if (u->CMDDIR < 0)

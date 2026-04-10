@@ -19,6 +19,9 @@
 #define HALL_SPEED_ADV_DELAY_US     500
 #define HALL_SPEED_ADV_MIN_RPM10    30
 #define HALL_SPEED_ADV_MAX_Q15      2730
+#define HALL_SPEED_ADV_HI_START_RPM10 1800
+#define HALL_SPEED_ADV_HI_END_RPM10   3200
+#define HALL_SPEED_ADV_HI_MAX_Q15     4096
 
 /* UART debug prints. Set to 0 for normal use. */
 #define HALL_DEBUG_ENABLE           0
