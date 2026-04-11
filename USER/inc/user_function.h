@@ -153,6 +153,8 @@ extern uint8_t MotionPositionEnable;
 extern int16_t MotionPositionTargetQ15;
 extern int16_t MotionPositionHoldIqQ15;
 extern int16_t MotionSpeedCurrentLimitQ15;
+extern uint8_t MotionReverseBraking;
+extern int16_t MotionBrakeIqQ15;
 extern uint16_t MotionTorquePermille;
 extern uint8_t MotionParkAngleValid;
 extern int16_t MotionParkAngleQ15;

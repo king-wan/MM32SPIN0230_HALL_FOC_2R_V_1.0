@@ -433,7 +433,13 @@ void Motor_Drive(void)
         {
             if (s_stop_brake_active)
             {
-                IqRef = -STOP_BRAKE_IQ;
+                int16_t brake_iq = (MotionReverseBraking != 0U) ? MotionBrakeIqQ15 : STOP_BRAKE_IQ;
+
+                if (brake_iq <= 0)
+                {
+                    brake_iq = STOP_BRAKE_IQ;
+                }
+                IqRef = (int16_t)(-brake_iq);
                 ctrlAngle = HALL1.Angle;
             }
 #if STOP_PARK_ENABLE
@@ -759,7 +765,14 @@ void MotorIdle(void)
             s_stop_park_polarity = 1;
             s_stop_park_flip_done = 0;
         }
-        if ((HALL1.SpeedTemp >= STOP_BRAKE_ENTRY_SPD) && (s_stop_brake_cnt < STOP_BRAKE_MAX_CYCLES))
+        if (MotionReverseBraking != 0U)
+        {
+            s_stop_brake_active = 1;
+            s_stop_brake_cnt = 0;
+            s_pos_hold_active = 1;
+            TIM_CtrlPWMOutputs(TIM1, ENABLE);
+        }
+        else if ((HALL1.SpeedTemp >= STOP_BRAKE_ENTRY_SPD) && (s_stop_brake_cnt < STOP_BRAKE_MAX_CYCLES))
         {
             s_stop_brake_active = 1;
             s_stop_brake_cnt++;

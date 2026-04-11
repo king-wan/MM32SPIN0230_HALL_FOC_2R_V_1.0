@@ -241,7 +241,7 @@ int main(void)
             g_pos_fdb_q15 = HALL1.Angle;
             SpeedFdk.NewData = HALL1.SpeedTemp;
             MovingAvgCal(&SpeedFdk);
-            MotionCtrl_Update5ms(g_pos_fdb_q15, (int16_t)SpeedFdk.Out, (int16_t)park1.Qs);
+            MotionCtrl_Update5ms(g_pos_fdb_q15, (int16_t)HALL1.SpeedTemp, (int16_t)park1.Qs);
 
             HALL1.CMDDIR = MotionRunDir;
 

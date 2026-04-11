@@ -42,6 +42,8 @@ uint8_t MotionPositionEnable = 0U;
 int16_t MotionPositionTargetQ15 = 0;
 int16_t MotionPositionHoldIqQ15 = POSITION_HOLD_IQ_Q15;
 int16_t MotionSpeedCurrentLimitQ15 = SPEED_LOOP_MAX_CURRENT_Q15;
+uint8_t MotionReverseBraking = 0U;
+int16_t MotionBrakeIqQ15 = STOP_BRAKE_IQ;
 uint16_t MotionTorquePermille = 0U;
 uint8_t MotionParkAngleValid = 0U;
 int16_t MotionParkAngleQ15 = 0;
@@ -54,6 +56,9 @@ int16_t MotionParkAngleQ15 = 0;
 #define MOTION_JOG_REPEAT_MS            120U
 #define MOTION_JOG_SPEED_RPM10          180U
 #define MOTION_REVERSE_STOP_RPM10       60U
+#define MOTION_REVERSE_STABLE_TICKS     4U
+#define MOTION_REVERSE_APPLY_TICKS      2U
+#define MOTION_REVERSE_BRAKE_IQ_Q15     1200
 #define MOTION_SAVE_READY_RPM10         20U
 #define MOTION_RECIP_MIN_PERIOD_MS      300U
 #define MOTION_RECIP_MAX_PERIOD_MS      1000U
@@ -70,6 +75,10 @@ int16_t MotionParkAngleQ15 = 0;
 #define MOTION_SPEED_FLOOR_RPM10        10U
 #define MOTION_HALL_STEPS_PER_TURN      6UL
 
+#define MOTION_REVERSE_STAGE_IDLE       0U
+#define MOTION_REVERSE_STAGE_DECEL      1U
+#define MOTION_REVERSE_STAGE_APPLY      2U
+
 typedef struct
 {
     uint32_t magic;
@@ -83,6 +92,7 @@ typedef struct
     uint16_t configured_speed_rpm;
     uint16_t configured_param;
     int8_t active_dir;
+    int8_t target_dir;
     int8_t recip_dir;
     uint16_t recip_elapsed_ms;
     uint32_t recip_start_steps;
@@ -92,6 +102,9 @@ typedef struct
     uint8_t save_pending;
     uint16_t torque_filt_q15;
     uint8_t over_torque_ticks;
+    uint8_t reverse_stage;
+    uint8_t reverse_stable_ticks;
+    uint8_t reverse_apply_ticks;
 } MotionCtrlState;
 
 static MotionCtrlState s_motion = {0};
@@ -242,6 +255,12 @@ static void Motion_ResetDynamicState(uint8_t new_mode)
     s_motion.recip_elapsed_ms = 0U;
     s_motion.recip_start_steps = g_hall_transition_total;
     s_motion.jog_repeat_ms = 0U;
+    if (new_mode == MOTION_MODE_STOP)
+    {
+        s_motion.reverse_stage = MOTION_REVERSE_STAGE_IDLE;
+        s_motion.reverse_stable_ticks = 0U;
+        s_motion.reverse_apply_ticks = 0U;
+    }
 
     if (new_mode == MOTION_MODE_RECIP_TIME || new_mode == MOTION_MODE_RECIP_TURNS)
     {
@@ -255,6 +274,7 @@ static void Motion_ResetDynamicState(uint8_t new_mode)
     {
         s_motion.recip_dir = MOTOR_DIR;
     }
+    s_motion.target_dir = s_motion.active_dir;
 }
 
 static void Motion_StopAll(void)
@@ -265,6 +285,10 @@ static void Motion_StopAll(void)
     MotionPositionEnable = 0U;
     MotionPositionTargetQ15 = MotionParkAngleQ15;
     MotionPositionHoldIqQ15 = POSITION_HOLD_IQ_Q15;
+    s_motion.reverse_stage = MOTION_REVERSE_STAGE_IDLE;
+    s_motion.reverse_stable_ticks = 0U;
+    s_motion.reverse_apply_ticks = 0U;
+    s_motion.target_dir = s_motion.active_dir;
 }
 
 static void Motion_BuildReply(uint8_t status, uint8_t *tx, uint16_t tx_cap)
@@ -322,6 +346,7 @@ void MotionCtrl_Init(void)
     s_motion.configured_speed_rpm = MOTION_RUN_MIN_SPEED_RPM;
     s_motion.configured_param = MOTION_RECIP_MIN_PERIOD_MS;
     s_motion.active_dir = MOTOR_DIR;
+    s_motion.target_dir = MOTOR_DIR;
     s_motion.recip_dir = MOTOR_DIR;
     s_motion.requested_mode = MOTION_MODE_STOP;
     s_motion.jog_continuous = 0U;
@@ -329,6 +354,9 @@ void MotionCtrl_Init(void)
     s_motion.save_pending = 0U;
     s_motion.torque_filt_q15 = 0U;
     s_motion.over_torque_ticks = 0U;
+    s_motion.reverse_stage = MOTION_REVERSE_STAGE_IDLE;
+    s_motion.reverse_stable_ticks = 0U;
+    s_motion.reverse_apply_ticks = 0U;
 
     MotionRunDir = MOTOR_DIR;
     MotionPositionTargetQ15 = MotionParkAngleQ15;
@@ -532,6 +560,8 @@ void MotionCtrl_Update5ms(int16_t angle_q15, int16_t speed_rpm10, int16_t iq_q15
     MotionRunDir = s_motion.active_dir;
     MotionSpeedCurrentLimitQ15 = SPEED_LOOP_MAX_CURRENT_Q15;
     MotionPositionHoldIqQ15 = POSITION_HOLD_IQ_Q15;
+    MotionReverseBraking = 0U;
+    MotionBrakeIqQ15 = STOP_BRAKE_IQ;
     MotionPositionTargetQ15 = MotionParkAngleQ15;
     MotionModeStatus = s_motion.requested_mode;
 
@@ -598,7 +628,6 @@ void MotionCtrl_Update5ms(int16_t angle_q15, int16_t speed_rpm10, int16_t iq_q15
         step_span = g_hall_transition_total - s_motion.recip_start_steps;
         if (step_span >= ((uint32_t)s_motion.configured_param * MOTION_HALL_STEPS_PER_TURN))
         {
-            s_motion.recip_start_steps = g_hall_transition_total;
             s_motion.recip_dir = (int8_t)(-s_motion.recip_dir);
         }
         desired_dir = s_motion.recip_dir;
@@ -636,11 +665,70 @@ void MotionCtrl_Update5ms(int16_t angle_q15, int16_t speed_rpm10, int16_t iq_q15
         }
     }
 
-    if ((s_motion.active_dir != desired_dir) && (Motion_Abs16(speed_rpm10) > MOTION_REVERSE_STOP_RPM10))
+    if (s_motion.active_dir != desired_dir)
     {
+        s_motion.target_dir = desired_dir;
+        if (s_motion.reverse_stage == MOTION_REVERSE_STAGE_IDLE)
+        {
+            s_motion.reverse_stage = MOTION_REVERSE_STAGE_DECEL;
+            s_motion.reverse_stable_ticks = 0U;
+            s_motion.reverse_apply_ticks = 0U;
+        }
+    }
+    else if (s_motion.reverse_stage == MOTION_REVERSE_STAGE_IDLE)
+    {
+        s_motion.target_dir = desired_dir;
+    }
+
+    if (s_motion.reverse_stage == MOTION_REVERSE_STAGE_DECEL)
+    {
+        MotionRunDir = s_motion.active_dir;
         MotionRunEnable = 0U;
         MotionSpeedCmdRpm10 = 0U;
+        MotionReverseBraking = 1U;
+        MotionBrakeIqQ15 = MOTION_REVERSE_BRAKE_IQ_Q15;
+
+        if (Motion_Abs16(speed_rpm10) <= MOTION_REVERSE_STOP_RPM10)
+        {
+            if (s_motion.reverse_stable_ticks < 250U)
+            {
+                s_motion.reverse_stable_ticks++;
+            }
+        }
+        else
+        {
+            s_motion.reverse_stable_ticks = 0U;
+        }
+
+        if (s_motion.reverse_stable_ticks >= MOTION_REVERSE_STABLE_TICKS)
+        {
+            s_motion.active_dir = s_motion.target_dir;
+            MotionRunDir = s_motion.active_dir;
+            s_motion.reverse_stage = MOTION_REVERSE_STAGE_APPLY;
+            s_motion.reverse_apply_ticks = MOTION_REVERSE_APPLY_TICKS;
+            s_motion.reverse_stable_ticks = 0U;
+            if (s_motion.requested_mode == MOTION_MODE_RECIP_TURNS)
+            {
+                s_motion.recip_start_steps = g_hall_transition_total;
+            }
+        }
         return;
+    }
+
+    if (s_motion.reverse_stage == MOTION_REVERSE_STAGE_APPLY)
+    {
+        MotionRunDir = s_motion.active_dir;
+        MotionRunEnable = 0U;
+        MotionSpeedCmdRpm10 = 0U;
+
+        if (s_motion.reverse_apply_ticks > 0U)
+        {
+            s_motion.reverse_apply_ticks--;
+            return;
+        }
+
+        s_motion.reverse_stage = MOTION_REVERSE_STAGE_IDLE;
+        s_motion.target_dir = s_motion.active_dir;
     }
 
     s_motion.active_dir = desired_dir;
