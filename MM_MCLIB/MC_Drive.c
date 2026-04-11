@@ -213,6 +213,15 @@ static int16_t GetFixedAlignAngle(void)
     return (int16_t)(center + HOLD_TARGET_BIAS);
 }
 
+static int16_t GetPreferredParkAngle(void)
+{
+    if (MotionParkAngleValid != 0U)
+    {
+        return MotionParkAngleQ15;
+    }
+    return GetFixedAlignAngle();
+}
+
 static uint8_t MotorCmdActive(void)
 {
 #if POSITION_LOOP_ENABLE
@@ -713,7 +722,7 @@ void MotorIdle(void)
         {
             if (s_start_align_cnt == 0U)
             {
-                s_pos_hold_target_angle = GetFixedAlignAngle();
+                s_pos_hold_target_angle = GetPreferredParkAngle();
                 s_start_ol_active = 0;
                 s_start_ol_cnt = 0;
                 s_start_ol_step = START_OL_STEP_INIT;
@@ -737,7 +746,7 @@ void MotorIdle(void)
     }
     else
     {
-        s_pos_hold_target_angle = GetFixedAlignAngle();
+        s_pos_hold_target_angle = GetPreferredParkAngle();
         s_start_align_cnt = 0;
         s_hold_hall_stable_cnt = 0;
         s_start_ol_active = 0;

@@ -23,11 +23,46 @@
 #include "drv_inc.h"
 #include "parameter.h"
 #include "user_function.h"
+#include <string.h>
 
 volatile uint32_t USART_TX_DMA_InterruptFlag = 0;
 volatile uint32_t USART_RX_DMA_InterruptFlag = 0;
 
-static uint8_t s_usart_dma_buffer[USART_DMA_TRANSFER_LEN];
+static uint8_t s_usart_dma_rx_byte[1];
+static uint8_t s_usart_dma_tx_buffer[USART_DMA_TRANSFER_LEN];
+static uint8_t s_usart_dma_tx_pending[USART_DMA_TRANSFER_LEN];
+static volatile uint8_t s_usart_tx_busy = 0U;
+static volatile uint8_t s_usart_tx_pending_len = 0U;
+static uint8_t s_usart_rx_frame[USART_DMA_TRANSFER_LEN];
+static uint8_t s_usart_rx_frame_index = 0U;
+
+static uint16_t Board_USART_ParseByte(uint8_t rx_byte, uint8_t *tx_buf, uint16_t tx_cap)
+{
+    if (s_usart_rx_frame_index == 0U)
+    {
+        if (rx_byte != MOTION_UART_SYNC_REQ)
+        {
+            return 0U;
+        }
+        s_usart_rx_frame[0] = rx_byte;
+        s_usart_rx_frame_index = 1U;
+        return 0U;
+    }
+
+    s_usart_rx_frame[s_usart_rx_frame_index] = rx_byte;
+    s_usart_rx_frame_index++;
+
+    if (s_usart_rx_frame_index < USART_DMA_TRANSFER_LEN)
+    {
+        return 0U;
+    }
+
+    s_usart_rx_frame_index = 0U;
+    return MotionCtrl_ProcessFrame(s_usart_rx_frame,
+                                   USART_DMA_TRANSFER_LEN,
+                                   tx_buf,
+                                   tx_cap);
+}
 
 /**
  * @addtogroup MM32_Hardware_Driver_Layer
@@ -401,22 +436,47 @@ void Board_USART_DMA_StartTx(uint8_t *buffer, uint16_t length)
     NVIC_Init(&NVIC_InitStruct);
 
     USART_TX_DMA_InterruptFlag = 0;
+    s_usart_tx_busy = 1U;
     DMA_Cmd(USART_DMA_TX_CHANNEL, ENABLE);
 }
 
 void Board_USART_DMA_Task(void)
 {
+    uint16_t tx_len;
+
     if (USART_RX_DMA_InterruptFlag != 0)
     {
         USART_RX_DMA_InterruptFlag = 0;
-        Board_USART_DMA_StartTx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
+        tx_len = Board_USART_ParseByte(s_usart_dma_rx_byte[0],
+                                       s_usart_dma_tx_buffer,
+                                       (uint16_t)sizeof(s_usart_dma_tx_buffer));
+        Board_USART_DMA_StartRx(s_usart_dma_rx_byte, 1U);
+        if (tx_len != 0U)
+        {
+            if (s_usart_tx_busy == 0U)
+            {
+                Board_USART_DMA_StartTx(s_usart_dma_tx_buffer, tx_len);
+            }
+            else
+            {
+                memcpy(s_usart_dma_tx_pending, s_usart_dma_tx_buffer, tx_len);
+                s_usart_tx_pending_len = (uint8_t)tx_len;
+            }
+        }
         return;
     }
 
     if (USART_TX_DMA_InterruptFlag != 0)
     {
         USART_TX_DMA_InterruptFlag = 0;
-        Board_USART_DMA_StartRx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
+        s_usart_tx_busy = 0U;
+        if (s_usart_tx_pending_len != 0U)
+        {
+            memcpy(s_usart_dma_tx_buffer, s_usart_dma_tx_pending, s_usart_tx_pending_len);
+            tx_len = s_usart_tx_pending_len;
+            s_usart_tx_pending_len = 0U;
+            Board_USART_DMA_StartTx(s_usart_dma_tx_buffer, tx_len);
+        }
     }
 }
 
@@ -451,8 +511,8 @@ void Peripheral_Init(void)
 	/*Initialize divider*/
     Drv_Hwdiv_Init();
 
-    Board_USART_DMA_Init(115200);
-    Board_USART_DMA_StartRx(s_usart_dma_buffer, USART_DMA_TRANSFER_LEN);
+    Board_USART_DMA_Init(19200);
+    Board_USART_DMA_StartRx(s_usart_dma_rx_byte, 1U);
 	
 	/** Enable the TIM1 */
     TIM_Cmd(TIM1, ENABLE);

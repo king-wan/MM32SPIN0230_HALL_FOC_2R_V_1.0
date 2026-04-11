@@ -60,8 +60,8 @@
 #define 	VBUS_HIGH_VALUE2	3500  		//过压恢复		35V
 #define 	VBUS_LOW_VALUE1		1600   	 	//欠压阀值		20V
 #define 	VBUS_LOW_VALUE2		1700   	  	//欠压恢复		21V
-#define 	IBUS_OVER_VALUE		200   		//软件过流值		2A
-#define 	IBUS_LIMIT_VALUE	120			//软件限流		1A
+#define 	IBUS_OVER_VALUE		400   		//软件过流值		4A
+#define 	IBUS_LIMIT_VALUE	300			//软件限流		3A
 #define 	LACK_PHASE_DETECT_CYCLE		1000
 
 //电机状态表
@@ -105,6 +105,61 @@ extern int32_t SpeedGain;
 extern uint32_t VbusGain;
 extern ADC_components ADC_Structure;
 
+/*
+ * Motion control command layer
+ * ----------------------------
+ * A fixed 10-byte UART packet configures the motion mode and parameters.
+ * The low-level FOC loop consumes the globals below every 5 ms.
+ *
+ * Request frame layout:
+ * [0]=0xA5 [1]=cmd [2]=arg0 [3]=arg1 [4]=data0 [5]=data1 [6]=data2 [7]=data3 [8]=sum_lo [9]=sum_hi
+ * checksum = sum(frame[0..7])
+ *
+ * Commands:
+ * SET_MODE: arg0=mode, data0..1=speed rpm, data2..3=period ms or turns
+ * JOG: arg0=action(0 step,1 hold,2 release), arg1=dir(1 forward,2 reverse)
+ * STOP / QUERY: payload ignored
+ */
+#define MOTION_UART_FRAME_LEN             10U
+#define MOTION_UART_SYNC_REQ              0xA5U
+#define MOTION_UART_SYNC_RSP              0x5AU
+
+#define MOTION_CMD_SET_MODE               0x01U
+#define MOTION_CMD_JOG                    0x02U
+#define MOTION_CMD_STOP                   0x03U
+#define MOTION_CMD_QUERY                  0x04U
+
+#define MOTION_STATUS_OK                  0x00U
+#define MOTION_STATUS_BAD_SYNC            0x01U
+#define MOTION_STATUS_BAD_CHECKSUM        0x02U
+#define MOTION_STATUS_BAD_CMD             0x03U
+#define MOTION_STATUS_BAD_PARAM           0x04U
+
+#define MOTION_MODE_STOP                  0U
+#define MOTION_MODE_FORWARD               1U
+#define MOTION_MODE_REVERSE               2U
+#define MOTION_MODE_RECIP_TIME            3U
+#define MOTION_MODE_RECIP_TURNS           4U
+#define MOTION_MODE_JOG                   5U
+
+#define MOTION_DIR_FORWARD                1U
+#define MOTION_DIR_REVERSE                2U
+
+extern uint8_t MotionModeStatus;
+extern uint8_t MotionRunEnable;
+extern int8_t MotionRunDir;
+extern uint16_t MotionSpeedCmdRpm10;
+extern uint8_t MotionPositionEnable;
+extern int16_t MotionPositionTargetQ15;
+extern int16_t MotionPositionHoldIqQ15;
+extern int16_t MotionSpeedCurrentLimitQ15;
+extern uint16_t MotionTorquePermille;
+extern uint8_t MotionParkAngleValid;
+extern int16_t MotionParkAngleQ15;
+
 extern void Init_Parameter(void);
+extern void MotionCtrl_Init(void);
+extern void MotionCtrl_Update5ms(int16_t angle_q15, int16_t speed_rpm10, int16_t iq_q15);
+extern uint16_t MotionCtrl_ProcessFrame(const uint8_t *rx, uint16_t rx_len, uint8_t *tx, uint16_t tx_cap);
 
 #endif

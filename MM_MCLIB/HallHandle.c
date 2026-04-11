@@ -22,6 +22,7 @@ volatile uint8_t g_hall_edge_tail = 0;
 volatile uint8_t g_hall_edge_count = 0;
 volatile uint8_t g_hall_edge_old_buf[32] = {0};
 volatile uint8_t g_hall_edge_new_buf[32] = {0};
+volatile uint32_t g_hall_transition_total = 0U;
 
 #define HALL_Q15_15DEG               2730
 #define HALL_Q15_30DEG               5460
@@ -268,6 +269,7 @@ static void Hall_HandleTransition(HALLType *u, uint8_t new_hall)
     g_hall_edge_new_buf[g_hall_edge_head] = new_hall;
     g_hall_edge_head = (uint8_t)((g_hall_edge_head + 1U) & 0x1FU);
     g_hall_edge_count++;
+    g_hall_transition_total++;
 
     edge_dir = Hall_GetEdgeDirection(u->PreHallValue, new_hall);
     u->EdgeDir = edge_dir;
@@ -367,6 +369,7 @@ void HALLModuleInit(HALLType *u)
     g_hall_edge_head = 0;
     g_hall_edge_tail = 0;
     g_hall_edge_count = 0;
+    g_hall_transition_total = 0U;
 }
 
 /****************************************************************

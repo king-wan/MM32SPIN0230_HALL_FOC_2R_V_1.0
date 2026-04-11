@@ -169,7 +169,7 @@
 #define MOTOR_RAMP_INC_RPM10            4       /* Speed command ramp-up step per update, unit: 10 rpm. */
 #define MOTOR_RAMP_DEC_RPM10            8       /* Speed command ramp-down step per update, unit: 10 rpm. */
 #define SPEED_LOOP_MAX_CURRENT_A10      12      /* Speed-loop Iq limit, unit: 0.1 A. */
-#define RUN_MIN_REF_RPM                 240     /* Minimum speed reference after startup, unit: 10 rpm. */
+#define RUN_MIN_REF_RPM                 10      /* Minimum speed reference after startup, unit: 10 rpm. */
 #define RUN_MIN_CURRENT_A10             2       /* Minimum running torque current, unit: 0.1 A. */
 #define SPEED_START_THRESHOLD           120     /* Pot/speed command threshold to enter run, unit: 10 rpm. */
 #define SPEED_STOP_THRESHOLD            80      /* Pot/speed command threshold to exit run, unit: 10 rpm. */
@@ -244,20 +244,20 @@
  * Retune this block only after speed mode already runs well.
  */
 #define POSITION_LOOP_ENABLE            0       /* Position mode master switch: 1=position, 0=speed. */
-#define POSITION_COARSE_MODE            1       /* Use Hall-sector coarse positioning: 1=on, 0=continuous angle mode. */
+#define POSITION_COARSE_MODE            0       /* Use Hall-sector coarse positioning: 1=on, 0=continuous angle mode. */
 #define POSITION_CMD_SRC_POT            1       /* Use potentiometer as position command source: 1=on. */
 #define POSITION_HOLD_DIR               MOTOR_DIR /* Fixed direction reference used for coarse Hall positioning. */
 #define POSITION_REF_Q15_DEFAULT        0       /* Default position reference after reset, unit: q15 angle. */
-#define POSITION_ERR_DEAD_Q15           1800    /* Error band to declare position reached, unit: q15 angle. */
-#define POSITION_ERR_RELEASE_Q15        2600    /* Error band to leave hold and resume movement, unit: q15 angle. */
+#define POSITION_ERR_DEAD_Q15           360     /* Error band to declare position reached, unit: q15 angle. */
+#define POSITION_ERR_RELEASE_Q15        900     /* Error band to leave hold and resume movement, unit: q15 angle. */
 #define POSITION_SPEED_MAX_RPM          1200    /* Max speed command in position mode, unit: 10 rpm. */
 #define POSITION_SPEED_MIN_RPM          180     /* Minimum crawl speed in position mode, unit: 10 rpm. */
 #define POSITION_TORQUE_MIN_Q15         520     /* Minimum torque while moving to target, unit: q15 current. */
-#define POSITION_HOLD_IQ_Q15            480     /* Hold current when position is reached, unit: q15 current. */
-#define POSITION_MOVE_IQ_Q15            1600    /* Movement current during position transitions, unit: q15 current. */
-#define POSITION_MOVE_ADV_Q15           5460    /* Extra lead angle during position move, unit: q15 angle. */
-#define POSITION_MOVE_ENTER_Q15         3200    /* Error threshold to enter move mode, unit: q15 angle. */
-#define POSITION_MOVE_EXIT_Q15          1800    /* Error threshold to exit move mode, unit: q15 angle. */
+#define POSITION_HOLD_IQ_Q15            600     /* Hold current when position is reached, unit: q15 current. */
+#define POSITION_MOVE_IQ_Q15            1800    /* Movement current during position transitions, unit: q15 current. */
+#define POSITION_MOVE_ADV_Q15           2730    /* Extra lead angle during position move, unit: q15 angle. */
+#define POSITION_MOVE_ENTER_Q15         900     /* Error threshold to enter move mode, unit: q15 angle. */
+#define POSITION_MOVE_EXIT_Q15          360     /* Error threshold to exit move mode, unit: q15 angle. */
 #define POSITION_COARSE_HOLD_IQ_Q15     220     /* Light hold current inside target Hall sector, unit: q15 current. */
 #define POSITION_COARSE_HOLD_DEAD_Q15   4200    /* Deadband for coarse Hall-sector hold, unit: q15 angle. */
 #define POSITION_COARSE_SETTLE_IQ_Q15   180     /* Small settling current when first entering target sector, unit: q15 current. */

@@ -57,6 +57,7 @@ extern volatile uint8_t g_hall_edge_tail;
 extern volatile uint8_t g_hall_edge_count;
 extern volatile uint8_t g_hall_edge_old_buf[32];
 extern volatile uint8_t g_hall_edge_new_buf[32];
+extern volatile uint32_t g_hall_transition_total;
 
 extern void HALLModuleInit(HALLType *u);
 extern void HALLModuleCalc(HALLType *u);
